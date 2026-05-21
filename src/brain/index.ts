@@ -40,11 +40,15 @@ export {
   type ScaffoldDockerfileOptions,
 } from "./repo.ts";
 export {
-  registerProject,
+  OVERVIEW_FILE,
+  type ProjectOverviewPatch,
   type ProjectRegistration,
+  readProjectOverview,
+  registerProject,
   scaffoldProject,
   type ScaffoldProjectOptions,
   toProjectSlug,
+  updateProjectOverview,
 } from "./projects.ts";
 export {
   type AgentEntry,
@@ -71,6 +75,8 @@ export {
   type PromptStackInputs,
 } from "./prompt-stack.ts";
 export {
+  approveArtifact,
+  parseFrontmatter,
   readArtifactFrontmatter,
   writeArtifact,
   type WriteArtifactOptions,
@@ -100,6 +106,18 @@ export {
   type StepResult,
   type StepRunner,
 } from "./run-step.ts";
+export {
+  type PipelineFn,
+  type PipelineRunOutcome,
+  type PipelineRunStatus,
+  runPipeline,
+  type RunPipelineOptions,
+} from "./pipeline-runner.ts";
+export {
+  projectStatus,
+  type StatusOptions,
+  type StatusReport,
+} from "./status.ts";
 export {
   ArtifactFrontmatter,
   ArtifactStatus,

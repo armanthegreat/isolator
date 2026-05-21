@@ -64,8 +64,11 @@ export interface WrittenArtifact {
  * Best-effort frontmatter parse. Returns `undefined` when the file has no
  * fence; surfaces malformed YAML as `undefined` rather than throwing, since
  * the caller's job is to *repair* frontmatter, not to fail on it.
+ *
+ * Exported so other vault-document modules (e.g. `projects.ts`, which reads
+ * `overview.md`) can share one frontmatter splitter.
  */
-const parseFrontmatter = (
+export const parseFrontmatter = (
   text: string,
 ):
   | { readonly frontmatter: Record<string, unknown>; readonly body: string }
@@ -257,6 +260,71 @@ export const readArtifactFrontmatter = (
     } catch {
       return undefined;
     }
+  });
+
+/**
+ * Mark an artifact `status: approved` in place, recording when and by whom.
+ *
+ * This is the write half of an approval gate: `gate()` throws while an
+ * artifact is `draft`; `isolator continue` calls this to clear the gate, then
+ * re-runs the pipeline so the now-approved gate passes. A no-op-safe repeat
+ * call simply rewrites the same `approved` status with a fresh timestamp.
+ *
+ * Fails with `VaultReadError` when the file is missing and `VaultWriteError`
+ * when it has no parseable §11 frontmatter (an artifact that was never written
+ * by {@link writeArtifact} cannot be approved). Returns the updated frontmatter.
+ */
+export const approveArtifact = (
+  absPath: string,
+  approvedBy = "isolator continue",
+): Effect.Effect<
+  ArtifactFrontmatter,
+  VaultReadError | VaultWriteError,
+  FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const text = yield* fs.readFileString(absPath).pipe(
+      Effect.mapError(
+        (cause) =>
+          new VaultReadError({
+            path: absPath,
+            message: `Could not read artifact: ${cause}`,
+          }),
+      ),
+    );
+    const parsed = parseFrontmatter(text);
+    if (parsed === undefined) {
+      return yield* new VaultWriteError({
+        path: absPath,
+        message: "Artifact has no frontmatter — cannot approve it.",
+      });
+    }
+    const current = yield* Effect.try({
+      try: () =>
+        Schema.decodeUnknownSync(ArtifactFrontmatter)(parsed.frontmatter),
+      catch: (cause) =>
+        new VaultWriteError({
+          path: absPath,
+          message: `Artifact frontmatter is invalid — cannot approve it: ${cause}`,
+        }),
+    });
+    const approved: ArtifactFrontmatter = {
+      ...current,
+      status: "approved",
+      approved_at: new Date().toISOString(),
+      approved_by: approvedBy,
+    };
+    yield* fs.writeFileString(absPath, serialize(approved, parsed.body)).pipe(
+      Effect.mapError(
+        (cause) =>
+          new VaultWriteError({
+            path: absPath,
+            message: `Could not write approved artifact: ${cause}`,
+          }),
+      ),
+    );
+    return approved;
   });
 
 /** Exported for testing only — direct access to the frontmatter parser. */

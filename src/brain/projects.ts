@@ -2,15 +2,18 @@ import { FileSystem } from "@effect/platform";
 import { Effect, Schema } from "effect";
 import { join } from "node:path";
 import { stringify as stringifyYaml } from "yaml";
+import { parseFrontmatter } from "./artifacts.ts";
 import {
   InvalidSlugError,
   ProjectExistsError,
   ProjectWriteError,
+  VaultReadError,
 } from "./errors.ts";
 import {
   type IsolatorConfig,
   type ProjectEntry,
   ProjectOverview,
+  type ProjectStatus,
 } from "./schemas.ts";
 
 /**
@@ -179,3 +182,162 @@ export const registerProject = (
     projects: { ...config.projects, [slug]: entry },
   };
 };
+
+/** Filename of a project's overview note inside `projects/<slug>/`. */
+export const OVERVIEW_FILE = "overview.md";
+
+/**
+ * Read and decode a project's `overview.md` frontmatter — the portable,
+ * machine-independent project record.
+ *
+ * Returns `undefined` when the file is missing or carries no decodable
+ * frontmatter (so callers can report "not found" without special-casing IO);
+ * only a genuine read failure surfaces as `VaultReadError`.
+ */
+export const readProjectOverview = (
+  vaultPath: string,
+  slug: string,
+): Effect.Effect<
+  ProjectOverview | undefined,
+  VaultReadError,
+  FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const absPath = join(vaultPath, "projects", slug, OVERVIEW_FILE);
+    const exists = yield* fs
+      .exists(absPath)
+      .pipe(Effect.catchAll(() => Effect.succeed(false)));
+    if (!exists) return undefined;
+    const text = yield* fs.readFileString(absPath).pipe(
+      Effect.mapError(
+        (cause) =>
+          new VaultReadError({
+            path: absPath,
+            message: `Could not read project overview: ${cause}`,
+          }),
+      ),
+    );
+    const parsed = parseFrontmatter(text);
+    if (parsed === undefined) return undefined;
+    try {
+      return Schema.decodeUnknownSync(ProjectOverview)(parsed.frontmatter);
+    } catch {
+      return undefined;
+    }
+  });
+
+/**
+ * A patch for {@link updateProjectOverview}. An absent key is left untouched;
+ * an explicit `null` clears an optional field; `status` is required and so
+ * can only be set, never cleared.
+ */
+export interface ProjectOverviewPatch {
+  readonly status?: ProjectStatus;
+  readonly pipeline?: string | null;
+  readonly current_step?: string | null;
+  readonly last_run_id?: string | null;
+  readonly blocker?: string | null;
+  readonly repo_url?: string | null;
+}
+
+/** Optional `overview.md` fields a patch may set or clear. */
+const PATCHABLE_FIELDS = [
+  "pipeline",
+  "current_step",
+  "last_run_id",
+  "blocker",
+  "repo_url",
+] as const;
+
+/** Apply a patch to a decoded overview — pure; see {@link ProjectOverviewPatch}. */
+const applyOverviewPatch = (
+  current: ProjectOverview,
+  patch: ProjectOverviewPatch,
+): ProjectOverview => {
+  const next: Record<string, unknown> = { ...current };
+  if (patch.status !== undefined) next["status"] = patch.status;
+  for (const key of PATCHABLE_FIELDS) {
+    const value = patch[key];
+    if (value === undefined) continue;
+    if (value === null) delete next[key];
+    else next[key] = value;
+  }
+  return next as ProjectOverview;
+};
+
+/**
+ * Patch a project's `overview.md` frontmatter in place, preserving the note
+ * body. This is how pipelines record lifecycle state — `status`,
+ * `current_step`, `last_run_id`, `blocker` — so `isolator status` can report it.
+ *
+ * Fails with `VaultReadError` when `overview.md` cannot be read and
+ * `ProjectWriteError` when it has no decodable frontmatter or the write fails.
+ * Returns the updated overview.
+ */
+export const updateProjectOverview = (
+  vaultPath: string,
+  slug: string,
+  patch: ProjectOverviewPatch,
+): Effect.Effect<
+  ProjectOverview,
+  VaultReadError | ProjectWriteError,
+  FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const absPath = join(vaultPath, "projects", slug, OVERVIEW_FILE);
+
+    const text = yield* fs.readFileString(absPath).pipe(
+      Effect.mapError(
+        (cause) =>
+          new VaultReadError({
+            path: absPath,
+            message: `Could not read project overview: ${cause}`,
+          }),
+      ),
+    );
+    const parsed = parseFrontmatter(text);
+    if (parsed === undefined) {
+      return yield* new ProjectWriteError({
+        slug,
+        path: absPath,
+        message: "overview.md has no frontmatter — cannot update it.",
+      });
+    }
+    const current = yield* Effect.try({
+      try: () => Schema.decodeUnknownSync(ProjectOverview)(parsed.frontmatter),
+      catch: (cause) =>
+        new ProjectWriteError({
+          slug,
+          path: absPath,
+          message: `overview.md frontmatter is invalid:\n${cause}`,
+        }),
+    });
+
+    const next = applyOverviewPatch(current, patch);
+    const encoded = yield* Schema.encode(ProjectOverview)(next).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ProjectWriteError({
+            slug,
+            path: absPath,
+            message: `Could not encode overview frontmatter:\n${cause.message}`,
+          }),
+      ),
+    );
+
+    const body = parsed.body.replace(/^\n+/, "");
+    const overviewMd = `---\n${stringifyYaml(encoded)}---\n\n${body}`;
+    yield* fs.writeFileString(absPath, overviewMd).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ProjectWriteError({
+            slug,
+            path: absPath,
+            message: `Could not write project overview: ${cause}`,
+          }),
+      ),
+    );
+    return next;
+  });

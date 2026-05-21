@@ -143,8 +143,8 @@ already-completed steps.
 ## CLI commands
 
 The CLI is brain-first. Five verbs cover the brain flow (`brain new`, `connect`,
-`pipeline`, plus the planned `status` / `continue`); the `docker` / `podman`
-namespaces remain as per-project image utilities.
+`pipeline`, `status`, `continue`); the `docker` / `podman` namespaces remain as
+per-project image utilities.
 
 ### `isolator brain new [path]`
 
@@ -179,8 +179,23 @@ A brain is never created automatically — pass `--new-brain` to create one, or 
 
 ### `isolator pipeline <name> <project>`
 
-Runs a registered pipeline against a connected project. Stops at a gate or on
-unresolved open questions with clear instructions.
+Runs a registered pipeline against a connected project. Steps that already
+completed are short-circuited — re-running a pipeline replays instantly up to
+the first unfinished step. When the pipeline pauses at an approval gate it stops
+and points you at `isolator continue`.
+
+### `isolator status <project>`
+
+Prints where a project stands: its lifecycle status, the pipeline driving it,
+the current step and any blocker (from `overview.md`), and a summary of the most
+recent run (from `system/runs.jsonl`).
+
+### `isolator continue <project>`
+
+Resumes the project's default pipeline. Completed steps short-circuit; if the
+pipeline is paused at an approval gate, `continue` approves that artifact and
+re-runs so the pipeline proceeds to the next gate or to completion. The pipeline
+is resolved from the project's `--pipeline` choice (or the last one that ran).
 
 ### `isolator docker build-image` / `isolator podman build-image`
 

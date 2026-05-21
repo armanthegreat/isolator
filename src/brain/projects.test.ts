@@ -6,10 +6,13 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 import {
+  type ProjectOverviewPatch,
+  readProjectOverview,
   registerProject,
   scaffoldProject,
   type ScaffoldProjectOptions,
   toProjectSlug,
+  updateProjectOverview,
 } from "./projects.ts";
 import { type IsolatorConfig, ProjectOverview } from "./schemas.ts";
 
@@ -98,6 +101,88 @@ describe("scaffoldProject", () => {
 
     const error = await scaffoldError({ vaultPath, slug: "acme" });
     expect(error._tag).toBe("ProjectExistsError");
+  });
+});
+
+describe("readProjectOverview / updateProjectOverview", () => {
+  const readOverview = (vaultPath: string, slug: string) =>
+    Effect.runPromise(
+      readProjectOverview(vaultPath, slug).pipe(
+        Effect.provide(NodeContext.layer),
+      ),
+    );
+
+  const updateOverview = (
+    vaultPath: string,
+    slug: string,
+    patch: ProjectOverviewPatch,
+  ) =>
+    Effect.runPromise(
+      updateProjectOverview(vaultPath, slug, patch).pipe(
+        Effect.provide(NodeContext.layer),
+      ),
+    );
+
+  it("reads back a scaffolded overview", async () => {
+    const vaultPath = await makeVault();
+    await scaffold({ vaultPath, slug: "acme" });
+
+    const overview = await readOverview(vaultPath, "acme");
+    expect(overview).toEqual({ project: "acme", status: "active" });
+  });
+
+  it("returns undefined when the project has no overview", async () => {
+    const vaultPath = await makeVault();
+    expect(await readOverview(vaultPath, "missing")).toBeUndefined();
+  });
+
+  it("patches status and adds fields, preserving the note body", async () => {
+    const vaultPath = await makeVault();
+    const dir = await scaffold({ vaultPath, slug: "acme" });
+
+    const updated = await updateOverview(vaultPath, "acme", {
+      status: "awaiting_approval",
+      pipeline: "discovery-to-prd",
+      current_step: "prd",
+      last_run_id: "run-1",
+    });
+    expect(updated).toEqual({
+      project: "acme",
+      status: "awaiting_approval",
+      pipeline: "discovery-to-prd",
+      current_step: "prd",
+      last_run_id: "run-1",
+    });
+
+    // The note body survives the frontmatter rewrite.
+    const raw = await readFile(join(dir, "overview.md"), "utf8");
+    expect(raw).toContain("Project overview.");
+    // And it round-trips through readProjectOverview.
+    expect(await readOverview(vaultPath, "acme")).toEqual(updated);
+  });
+
+  it("clears an optional field when patched with null", async () => {
+    const vaultPath = await makeVault();
+    await scaffold({ vaultPath, slug: "acme" });
+
+    await updateOverview(vaultPath, "acme", { blocker: "waiting on review" });
+    expect((await readOverview(vaultPath, "acme"))?.blocker).toBe(
+      "waiting on review",
+    );
+
+    await updateOverview(vaultPath, "acme", { blocker: null });
+    expect((await readOverview(vaultPath, "acme"))?.blocker).toBeUndefined();
+  });
+
+  it("fails with VaultReadError when overview.md is missing", async () => {
+    const vaultPath = await makeVault();
+
+    const error = await Effect.runPromise(
+      updateProjectOverview(vaultPath, "missing", {
+        status: "done",
+      }).pipe(Effect.provide(NodeContext.layer), Effect.flip),
+    );
+    expect(error._tag).toBe("VaultReadError");
   });
 });
 

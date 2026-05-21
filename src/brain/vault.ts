@@ -23,10 +23,12 @@ export const VAULT_DIRS = [
 ] as const;
 
 /**
- * Vault directories that start empty. Each gets a `.gitkeep` so the directory
- * survives a `git add` — `system/` is excluded because it ships real files.
+ * Vault directories that ship empty and have no template README of their own.
+ * Each gets a `.gitkeep` so the directory survives a `git add` — `system/` is
+ * excluded because it ships real files, and `skills/`/`roles/`/`rules/` are
+ * excluded because their template README keeps them tracked.
  */
-const GITKEEP_DIRS = ["skills", "roles", "rules", "projects"] as const;
+const GITKEEP_DIRS = ["projects"] as const;
 
 /** Path of the base system prompt, relative to the vault root. */
 export const BASE_PROMPT_PATH = join("system", "base.md");
@@ -53,6 +55,46 @@ small and universal — anything step-specific belongs in a skill, role, or rule
 - Prefer evidence from the staged context over assumption.
 - When uncertain about scope, record the uncertainty rather than guessing.
 `;
+
+/**
+ * Template READMEs seeded into the empty authoring directories. They make a
+ * fresh vault self-documenting — a connected operator can see what belongs in
+ * each folder before any skill, role, or rule has been written.
+ */
+const TEMPLATE_READMES: Readonly<Record<string, string>> = {
+  skills: `# Skills
+
+A **skill** is a reusable capability bundle a brain step loads via
+\`runStep({ skill })\`. Each skill is its own folder:
+
+    skills/<name>/
+      SKILL.md        — required entry point: what the skill does, and how
+      *.md, *.txt …   — optional supporting files, staged alongside SKILL.md
+
+\`SKILL.md\` is composed into the step prompt; supporting files travel with it.
+Keep a skill focused on one capability — a step can load several at once.
+`,
+  roles: `# Roles
+
+A **role** is a persona a brain step adopts, loaded via \`runStep({ role })\`.
+Each role is a single Markdown file:
+
+    roles/<name>.md
+
+Its contents are composed into the step prompt after the skills. Use a role to
+set voice, stance, and standards (e.g. a sceptical reviewer that grills for
+gaps) — not task mechanics, which belong in a skill.
+`,
+  rules: `# Rules
+
+**Rules** are shared constraints — coding standards, product principles,
+naming conventions — that a step pulls into context with a glob, e.g.
+\`context: ["rules/product/*"]\`.
+
+Organise them in topic subfolders. Unlike skills and roles, rules are not
+loaded by name; a step opts in by matching them in its \`context\` patterns.
+`,
+};
 
 /** Top-level README explaining what the vault is. */
 const VAULT_README = `# Brain vault
@@ -108,6 +150,9 @@ export const scaffoldVault = (
       );
       yield* fs.writeFileString(join(vaultDir, RUNS_LOG_PATH), "");
       yield* fs.writeFileString(join(vaultDir, "README.md"), VAULT_README);
+      for (const [subdir, readme] of Object.entries(TEMPLATE_READMES)) {
+        yield* fs.writeFileString(join(vaultDir, subdir, "README.md"), readme);
+      }
       for (const subdir of GITKEEP_DIRS) {
         yield* fs.writeFileString(join(vaultDir, subdir, ".gitkeep"), "");
       }

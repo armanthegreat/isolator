@@ -1,6 +1,6 @@
 import { NodeContext } from "@effect/platform-node";
 import { Effect } from "effect";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -235,6 +235,65 @@ describe("runStep", () => {
     expect(result.success).toBe(false);
     expect(result.validation).toHaveLength(1);
     expect(result.validation[0]?.passed).toBe(false);
+  });
+});
+
+describe("runStep short-circuit", () => {
+  const echoStep = {
+    project: "demo",
+    id: "echo",
+    prompt: "say the word",
+    output: { type: "echo", path: "echo.md" },
+  } as const;
+
+  it("short-circuits a step that already completed successfully", async () => {
+    const { home } = await setup();
+    const { runner, calls } = makeFakeRunner("ISOLATOR");
+
+    const first = await runStep({ ...echoStep, home, runner });
+    expect(first.skipped).toBeUndefined();
+    expect(calls).toHaveLength(1);
+
+    const second = await runStep({ ...echoStep, home, runner });
+    expect(second.skipped).toBe(true);
+    expect(calls).toHaveLength(1); // the agent was not invoked again
+    expect(second.runId).toBe(first.runId); // the prior run is reused
+    expect(second.success).toBe(true);
+    expect(second.artifactPath).toBe(first.artifactPath);
+
+    // The artifact is reused, not regenerated — its version stays at 1.
+    const written = await readFile(second.artifactPath, "utf-8");
+    expect(written).toContain("version: 1");
+  });
+
+  it("re-runs a completed step when its artifact is gone", async () => {
+    const { home, vault } = await setup();
+    const { runner, calls } = makeFakeRunner("ISOLATOR");
+
+    await runStep({ ...echoStep, home, runner });
+    expect(calls).toHaveLength(1);
+
+    await rm(join(vault, "projects", "demo", "echo.md"));
+
+    const second = await runStep({ ...echoStep, home, runner });
+    expect(calls).toHaveLength(2);
+    expect(second.skipped).toBeUndefined();
+  });
+
+  it("re-runs a step whose only prior run failed", async () => {
+    const { home } = await setup();
+    const failingRunner: StepRunner = async () => {
+      throw new Error("sandbox boom");
+    };
+    await expect(
+      runStep({ ...echoStep, home, runner: failingRunner }),
+    ).rejects.toThrow("sandbox boom");
+
+    const { runner, calls } = makeFakeRunner("ISOLATOR");
+    const second = await runStep({ ...echoStep, home, runner });
+    expect(calls).toHaveLength(1); // the failed run did not block a retry
+    expect(second.skipped).toBeUndefined();
+    expect(second.success).toBe(true);
   });
 });
 

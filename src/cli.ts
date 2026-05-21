@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { styleText } from "node:util";
 
-import { Display } from "./Display.ts";
+import { Display, type DisplayService } from "./Display.ts";
 import { buildImage, removeImage } from "./DockerLifecycle.ts";
 import {
   buildImage as podmanBuildImage,
@@ -28,7 +28,11 @@ import {
   listAgents,
   listBacklogManagers,
   listSandboxProviders,
+  type PipelineRunOutcome,
+  projectStatus,
+  runPipeline,
   type SandboxProviderEntry,
+  type StatusReport,
 } from "./brain/index.ts";
 import { pipelines } from "./pipelines/index.ts";
 
@@ -515,6 +519,52 @@ const pipelineNameArg = Args.text({ name: "name" }).pipe(
   Args.withDescription("Pipeline to run (e.g. echo)"),
 );
 
+/** Render a {@link PipelineRunOutcome} — shared by `pipeline` and `continue`. */
+const reportPipelineOutcome = (
+  d: DisplayService,
+  outcome: PipelineRunOutcome,
+): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    const { result } = outcome;
+    if (outcome.approvedGate !== undefined) {
+      yield* d.status(`Approved gate "${outcome.approvedGate}"`, "success");
+    }
+    switch (outcome.runStatus) {
+      case "completed":
+        yield* d.status(
+          `Pipeline "${outcome.pipelineName}" complete`,
+          "success",
+        );
+        break;
+      case "paused":
+        yield* d.status(`Paused at gate "${outcome.pausedGate}"`, "warn");
+        yield* d.text(styleText("dim", `  Review ${result.artifactPath},`));
+        yield* d.text(
+          styleText(
+            "dim",
+            `  then run \`isolator continue ${outcome.project}\` to approve and proceed.`,
+          ),
+        );
+        break;
+      case "failed":
+        yield* d.status(
+          `Pipeline "${outcome.pipelineName}" finished with validation failures`,
+          "error",
+        );
+        yield* d.text(
+          styleText("dim", `  See \`isolator status ${outcome.project}\`.`),
+        );
+        break;
+    }
+    yield* d.text(
+      styleText(
+        "dim",
+        `  run:      ${result.runId}${result.skipped ? " (reused)" : ""}`,
+      ),
+    );
+    yield* d.text(styleText("dim", `  artifact: ${result.artifactPath}`));
+  });
+
 const pipelineCommand = Command.make(
   "pipeline",
   { name: pipelineNameArg, project: projectArg },
@@ -524,14 +574,14 @@ const pipelineCommand = Command.make(
       const pipeline = pipelines[name];
       if (pipeline === undefined) {
         const names = Object.keys(pipelines).join(", ");
-        yield* Effect.fail(
+        return yield* Effect.fail(
           new InitError({
             message: `Unknown pipeline "${name}". Available: ${names}`,
           }),
         );
       }
-      const result = yield* Effect.tryPromise({
-        try: () => pipeline!(project),
+      const outcome = yield* Effect.tryPromise({
+        try: () => runPipeline({ pipeline, pipelineName: name, project }),
         catch: (cause) =>
           new InitError({
             message: `Pipeline "${name}" failed: ${
@@ -539,9 +589,107 @@ const pipelineCommand = Command.make(
             }`,
           }),
       });
-      yield* d.status(`Pipeline "${name}" complete`, "success");
-      yield* d.text(styleText("dim", `  run:      ${result.runId}`));
-      yield* d.text(styleText("dim", `  artifact: ${result.artifactPath}`));
+      yield* reportPipelineOutcome(d, outcome);
+    }),
+);
+
+// --- Continue command ---
+
+const continueCommand = Command.make(
+  "continue",
+  { project: projectArg },
+  ({ project }) =>
+    Effect.gen(function* () {
+      const d = yield* Display;
+      // `projectStatus` does the config load + connected check, and tells us
+      // which pipeline to resume.
+      const report = yield* Effect.tryPromise({
+        try: () => projectStatus({ project }),
+        catch: (cause) =>
+          new InitError({
+            message: cause instanceof Error ? cause.message : String(cause),
+          }),
+      });
+      const pipelineName =
+        report.entry.default_pipeline ?? report.overview?.pipeline;
+      if (pipelineName === undefined) {
+        return yield* Effect.fail(
+          new InitError({
+            message: `No pipeline is set for "${report.project}". Run \`isolator pipeline <name> ${report.project}\` first, or reconnect with \`--pipeline\`.`,
+          }),
+        );
+      }
+      const pipeline = pipelines[pipelineName];
+      if (pipeline === undefined) {
+        const names = Object.keys(pipelines).join(", ");
+        return yield* Effect.fail(
+          new InitError({
+            message: `Project "${report.project}" references unknown pipeline "${pipelineName}". Available: ${names}`,
+          }),
+        );
+      }
+      const outcome = yield* Effect.tryPromise({
+        try: () =>
+          runPipeline({
+            pipeline,
+            pipelineName,
+            project,
+            approveGate: true,
+          }),
+        catch: (cause) =>
+          new InitError({
+            message: `Continue failed: ${
+              cause instanceof Error ? cause.message : String(cause)
+            }`,
+          }),
+      });
+      yield* reportPipelineOutcome(d, outcome);
+    }),
+);
+
+// --- Status command ---
+
+const statusCommand = Command.make(
+  "status",
+  { project: projectArg },
+  ({ project }) =>
+    Effect.gen(function* () {
+      const d = yield* Display;
+      const report: StatusReport = yield* Effect.tryPromise({
+        try: () => projectStatus({ project }),
+        catch: (cause) =>
+          new InitError({
+            message: cause instanceof Error ? cause.message : String(cause),
+          }),
+      });
+      const dim = (text: string) => d.text(styleText("dim", text));
+
+      const lifecycle = report.overview?.status ?? "unknown";
+      yield* d.status(`Project "${report.project}" — ${lifecycle}`, "info");
+      yield* dim(`  repo:      ${report.repoPath}`);
+
+      const pipeline =
+        report.overview?.pipeline ?? report.entry.default_pipeline;
+      if (pipeline !== undefined) yield* dim(`  pipeline:  ${pipeline}`);
+      if (report.overview?.current_step !== undefined) {
+        yield* dim(`  step:      ${report.overview.current_step}`);
+      }
+      if (report.overview?.blocker !== undefined) {
+        yield* dim(`  blocker:   ${report.overview.blocker}`);
+      }
+
+      const run = report.lastRun;
+      if (run === undefined) {
+        yield* dim("  last run:  (none yet)");
+      } else {
+        yield* dim(`  last run:  ${run.run_id}`);
+        yield* dim(
+          `             step ${run.step_id} · ${
+            run.success ? "ok" : "failed"
+          } · ${run.tokens_in}/${run.tokens_out} tok · ${run.duration_ms} ms`,
+        );
+        yield* dim(`             started ${run.started_at}`);
+      }
     }),
 );
 
@@ -560,6 +708,8 @@ export const isolator = rootCommand.pipe(
     brainCommand,
     connectCommand,
     pipelineCommand,
+    continueCommand,
+    statusCommand,
     dockerCommand,
     podmanCommand,
   ]),
