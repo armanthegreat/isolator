@@ -1,9 +1,10 @@
-import { Command, Options } from "@effect/cli";
+import { Args, Command, Options } from "@effect/cli";
 import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import * as clack from "@clack/prompts";
 import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { styleText } from "node:util";
 
@@ -31,6 +32,12 @@ import type {
   SandboxProviderEntry,
 } from "./InitService.ts";
 import { ConfigDirError, InitError } from "./errors.ts";
+import {
+  connectProject,
+  createBrain,
+  defaultIsolatorHomeLayer,
+  formatBrainError,
+} from "./brain/index.ts";
 
 const require = createRequire(import.meta.url);
 const VERSION = (require("../package.json") as { version: string }).version;
@@ -476,6 +483,107 @@ const podmanCommand = Command.make("podman", {}, () =>
   Command.withSubcommands([podmanBuildImageCommand, podmanRemoveImageCommand]),
 );
 
+// --- Brain commands ---
+
+/** Map any brain-layer error to a friendly `InitError` for the CLI. */
+const asInitError = <A, E extends Parameters<typeof formatBrainError>[0], R>(
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<A, InitError, R> =>
+  effect.pipe(
+    Effect.catchAll((error) =>
+      Effect.fail(new InitError({ message: formatBrainError(error) })),
+    ),
+  );
+
+const brainPathArg = Args.text({ name: "path" }).pipe(
+  Args.withDescription("Directory for the brain vault (default: ~/brain)"),
+  Args.optional,
+);
+
+const brainNewCommand = Command.make(
+  "new",
+  { path: brainPathArg },
+  ({ path }) =>
+    Effect.gen(function* () {
+      const d = yield* Display;
+      const target = Option.getOrElse(path, () => join(homedir(), "brain"));
+      const vaultPath = yield* asInitError(
+        createBrain(target).pipe(Effect.provide(defaultIsolatorHomeLayer)),
+      );
+      yield* d.status(`Brain vault created at ${vaultPath}`, "success");
+    }),
+);
+
+const brainCommand = Command.make("brain", {}, () =>
+  Effect.gen(function* () {
+    const d = yield* Display;
+    yield* d.status(
+      "Brain commands. Use --help to see available subcommands.",
+      "info",
+    );
+  }),
+).pipe(Command.withSubcommands([brainNewCommand]));
+
+const projectArg = Args.text({ name: "project" }).pipe(
+  Args.withDescription("Project name (normalized to a slug)"),
+);
+
+const brainOption = Options.text("brain").pipe(
+  Options.withDescription("Path to an existing brain vault to connect to"),
+  Options.optional,
+);
+
+const newBrainOption = Options.text("new-brain").pipe(
+  Options.withDescription("Create a new brain vault at this path"),
+  Options.optional,
+);
+
+const repoOption = Options.text("repo").pipe(
+  Options.withDescription("Path to an existing project source repo to link"),
+  Options.optional,
+);
+
+const newRepoOption = Options.text("new-repo").pipe(
+  Options.withDescription(
+    "Create a new project source repo at this path (default: ./<slug>)",
+  ),
+  Options.optional,
+);
+
+const connectCommand = Command.make(
+  "connect",
+  {
+    project: projectArg,
+    brain: brainOption,
+    newBrain: newBrainOption,
+    repo: repoOption,
+    newRepo: newRepoOption,
+  },
+  ({ project, brain, newBrain, repo, newRepo }) =>
+    Effect.gen(function* () {
+      const d = yield* Display;
+      const result = yield* asInitError(
+        connectProject({
+          name: project,
+          cwd: process.cwd(),
+          brain: Option.getOrUndefined(brain),
+          newBrain: Option.getOrUndefined(newBrain),
+          repo: Option.getOrUndefined(repo),
+          newRepo: Option.getOrUndefined(newRepo),
+        }).pipe(Effect.provide(defaultIsolatorHomeLayer)),
+      );
+      if (result.createdBrain) {
+        yield* d.status(
+          `Brain vault created at ${result.vaultPath}`,
+          "success",
+        );
+      }
+      yield* d.status(`Connected project "${result.slug}"`, "success");
+      yield* d.text(styleText("dim", `  vault: ${result.projectDir}`));
+      yield* d.text(styleText("dim", `  repo:  ${result.repoPath}`));
+    }),
+);
+
 // --- Root command ---
 
 const rootCommand = Command.make("isolator", {}, () =>
@@ -487,7 +595,13 @@ const rootCommand = Command.make("isolator", {}, () =>
 );
 
 export const isolator = rootCommand.pipe(
-  Command.withSubcommands([initCommand, dockerCommand, podmanCommand]),
+  Command.withSubcommands([
+    initCommand,
+    brainCommand,
+    connectCommand,
+    dockerCommand,
+    podmanCommand,
+  ]),
 );
 
 export const cli = Command.run(isolator, {

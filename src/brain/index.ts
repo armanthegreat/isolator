@@ -6,10 +6,49 @@
  */
 
 export {
+  type ConnectOptions,
+  type ConnectResult,
+  connectProject,
+  createBrain,
+} from "./connect.ts";
+export {
   defaultIsolatorHomeLayer,
   IsolatorHome,
   isolatorHomeLayer,
   loadConfig,
+  saveConfig,
 } from "./config.ts";
-export { ConfigInvalidError, ConfigNotFoundError } from "./errors.ts";
-export { ConfigDefaults, IsolatorConfig, ProjectEntry } from "./schemas.ts";
+export {
+  type BrainError,
+  BrainNotFoundError,
+  ConfigInvalidError,
+  ConfigNotFoundError,
+  ConfigWriteError,
+  formatBrainError,
+  InvalidSlugError,
+  ProjectExistsError,
+  ProjectWriteError,
+  RepoError,
+  VaultExistsError,
+  VaultWriteError,
+} from "./errors.ts";
+export { createRepo, linkRepo, type RepoLink } from "./repo.ts";
+export {
+  registerProject,
+  scaffoldProject,
+  type ScaffoldProjectOptions,
+  toProjectSlug,
+} from "./projects.ts";
+export {
+  ConfigDefaults,
+  IsolatorConfig,
+  ProjectEntry,
+  ProjectOverview,
+  ProjectStatus,
+} from "./schemas.ts";
+export {
+  BASE_PROMPT_PATH,
+  RUNS_LOG_PATH,
+  scaffoldVault,
+  VAULT_DIRS,
+} from "./vault.ts";
