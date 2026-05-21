@@ -1,7 +1,8 @@
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
+import fastGlob from "fast-glob";
 import { join, resolve } from "node:path";
-import { VaultExistsError, VaultWriteError } from "./errors.ts";
+import { VaultExistsError, VaultReadError, VaultWriteError } from "./errors.ts";
 
 /**
  * The brain vault — a global, shared Obsidian-style Markdown repo holding
@@ -123,4 +124,94 @@ export const scaffoldVault = (
     );
 
     return vaultDir;
+  });
+
+/**
+ * Substitute `$slug` placeholders in a glob pattern. Used so step `context`
+ * patterns like `"projects/$slug/discovery/**"` stay portable across projects.
+ */
+export const expandSlug = (pattern: string, slug: string): string =>
+  pattern.replaceAll("$slug", slug);
+
+/**
+ * Substitute `$slug` in every pattern of an array, preserving order.
+ */
+export const expandSlugs = (
+  patterns: readonly string[],
+  slug: string,
+): string[] => patterns.map((pattern) => expandSlug(pattern, slug));
+
+/**
+ * Read a single vault file by its vault-relative path, returning UTF-8 text.
+ *
+ * Failures (missing file, permission denied) are surfaced as a `VaultReadError`
+ * with the absolute path; callers can decide whether to fall back or stop.
+ */
+export const readNote = (
+  vaultPath: string,
+  relPath: string,
+): Effect.Effect<string, VaultReadError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const absolute = join(resolve(vaultPath), relPath);
+    return yield* fs.readFileString(absolute).pipe(
+      Effect.mapError(
+        (cause) =>
+          new VaultReadError({
+            path: absolute,
+            message: `Could not read vault note: ${cause}`,
+          }),
+      ),
+    );
+  });
+
+/** Result of a vault glob: vault-relative paths in the order fast-glob returns them. */
+export interface VaultGlobMatch {
+  /** Vault-relative path of the matched file. */
+  readonly path: string;
+  /** Pattern that pulled it in (so the manifest can record provenance). */
+  readonly reason: string;
+}
+
+/**
+ * Glob the vault. Patterns are vault-relative and run through `$slug`
+ * substitution when `slug` is given. Each match remembers the pattern that
+ * pulled it in, so the context manifest can record why a file was staged.
+ *
+ * Duplicates are folded: if multiple patterns match the same file, the *first*
+ * pattern that matched is recorded as its reason.
+ */
+export const globVault = (
+  vaultPath: string,
+  patterns: readonly string[],
+  options: { readonly slug?: string } = {},
+): Effect.Effect<VaultGlobMatch[], VaultReadError> =>
+  Effect.gen(function* () {
+    const root = resolve(vaultPath);
+    const expanded = options.slug
+      ? expandSlugs(patterns, options.slug)
+      : [...patterns];
+
+    const matches = new Map<string, string>();
+    for (const pattern of expanded) {
+      const found = yield* Effect.tryPromise({
+        try: () =>
+          fastGlob(pattern, {
+            cwd: root,
+            dot: false,
+            onlyFiles: true,
+            followSymbolicLinks: false,
+          }),
+        catch: (cause) =>
+          new VaultReadError({
+            path: root,
+            message: `Could not glob "${pattern}": ${cause}`,
+          }),
+      });
+      for (const path of found) {
+        if (!matches.has(path)) matches.set(path, pattern);
+      }
+    }
+
+    return [...matches].map(([path, reason]) => ({ path, reason }));
   });

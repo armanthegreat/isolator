@@ -33,24 +33,48 @@ describe("isolator CLI", () => {
   it("shows help with --help flag", async () => {
     const { stdout } = await runCli("--help", process.cwd());
     expect(stdout).toContain("isolator");
+    // Brain verbs are the canonical surface.
+    expect(stdout).toContain("brain");
+    expect(stdout).toContain("connect");
+    expect(stdout).toContain("pipeline");
+    // Per-project image utilities stay.
     expect(stdout).toContain("docker");
-    expect(stdout).toContain("init");
-    expect(stdout).not.toContain("run");
-    expect(stdout).not.toContain("interactive");
-    // build-image and remove-image are namespaced under docker, not top-level
+    expect(stdout).toContain("podman");
     expect(stdout).toContain("docker build-image");
     expect(stdout).toContain("docker remove-image");
-    // Old command names should not be exposed
+    // The retired per-project orchestration verbs must not reappear.
+    expect(stdout).not.toContain(" init ");
+    expect(stdout).not.toContain(" run ");
+    expect(stdout).not.toContain("interactive");
     expect(stdout).not.toContain("setup-sandbox");
     expect(stdout).not.toContain("cleanup-sandbox");
     expect(stdout).not.toContain("sync-in");
     expect(stdout).not.toContain("sync-out");
   });
 
+  it("--help shows podman namespace", async () => {
+    const { stdout } = await runCli("--help", process.cwd());
+    expect(stdout).toContain("podman");
+    expect(stdout).toContain("podman build-image");
+    expect(stdout).toContain("podman remove-image");
+  });
+
   it("docker --help shows build-image and remove-image subcommands", async () => {
     const { stdout } = await runCli("docker --help", process.cwd());
     expect(stdout).toContain("build-image");
     expect(stdout).toContain("remove-image");
+  });
+
+  it("podman --help shows build-image and remove-image subcommands", async () => {
+    const { stdout } = await runCli("podman --help", process.cwd());
+    expect(stdout).toContain("build-image");
+    expect(stdout).toContain("remove-image");
+  });
+
+  it("podman build-image --help shows --containerfile and --image-name flags", async () => {
+    const { stdout } = await runCli("podman build-image --help", process.cwd());
+    expect(stdout).toContain("--containerfile");
+    expect(stdout).toContain("--image-name");
   });
 
   it("docker build-image errors when .isolator/ is missing", async () => {
@@ -68,75 +92,6 @@ describe("isolator CLI", () => {
     }
   });
 
-  it("init --help shows --template flag", async () => {
-    const { stdout } = await runCli("init --help", process.cwd());
-    expect(stdout).toContain("--template");
-  });
-
-  it("init --help exposes --agent flag", async () => {
-    const { stdout } = await runCli("init --help", process.cwd());
-    expect(stdout).toContain("--agent");
-  });
-
-  it("init --help exposes --model flag", async () => {
-    const { stdout } = await runCli("init --help", process.cwd());
-    expect(stdout).toContain("--model");
-  });
-
-  it("init --template nonexistent produces error listing available templates", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "cli-host-"));
-    await initRepo(hostDir);
-
-    try {
-      await runCli("init --agent claude-code --template nonexistent", hostDir);
-      expect.fail("Expected command to fail");
-    } catch (err: unknown) {
-      const { stdout, stderr } = err as { stdout: string; stderr: string };
-      const output = stdout + stderr;
-      expect(output).toContain("nonexistent");
-      expect(output).toContain("blank");
-      expect(output).toContain("simple-loop");
-    }
-  });
-
-  it("old top-level build-image command no longer works", async () => {
-    try {
-      await runCli("build-image", process.cwd());
-      expect.fail("Expected command to fail");
-    } catch (err: unknown) {
-      // Command should fail since build-image is no longer a top-level command
-      expect(err).toBeDefined();
-    }
-  });
-
-  it("old top-level remove-image command no longer works", async () => {
-    try {
-      await runCli("remove-image", process.cwd());
-      expect.fail("Expected command to fail");
-    } catch (err: unknown) {
-      expect(err).toBeDefined();
-    }
-  });
-
-  it("--help shows podman namespace", async () => {
-    const { stdout } = await runCli("--help", process.cwd());
-    expect(stdout).toContain("podman");
-    expect(stdout).toContain("podman build-image");
-    expect(stdout).toContain("podman remove-image");
-  });
-
-  it("podman --help shows build-image and remove-image subcommands", async () => {
-    const { stdout } = await runCli("podman --help", process.cwd());
-    expect(stdout).toContain("build-image");
-    expect(stdout).toContain("remove-image");
-  });
-
-  it("podman build-image --help shows --containerfile and --image-name flags", async () => {
-    const { stdout } = await runCli("podman build-image --help", process.cwd());
-    expect(stdout).toContain("--containerfile");
-    expect(stdout).toContain("--image-name");
-  });
-
   it("podman build-image errors when .isolator/ is missing", async () => {
     const hostDir = await mkdtemp(join(tmpdir(), "cli-host-"));
     await initRepo(hostDir);
@@ -152,12 +107,47 @@ describe("isolator CLI", () => {
     }
   });
 
-  it("init --agent nonexistent produces error listing available agents", async () => {
+  it("old top-level build-image command no longer works", async () => {
+    try {
+      await runCli("build-image", process.cwd());
+      expect.fail("Expected command to fail");
+    } catch (err: unknown) {
+      expect(err).toBeDefined();
+    }
+  });
+
+  it("old top-level remove-image command no longer works", async () => {
+    try {
+      await runCli("remove-image", process.cwd());
+      expect.fail("Expected command to fail");
+    } catch (err: unknown) {
+      expect(err).toBeDefined();
+    }
+  });
+
+  it("retired `init` verb is gone", async () => {
+    try {
+      await runCli("init --help", process.cwd());
+      expect.fail("Expected command to fail");
+    } catch (err: unknown) {
+      expect(err).toBeDefined();
+    }
+  });
+
+  it("connect --help exposes the new selector flags", async () => {
+    const { stdout } = await runCli("connect --help", process.cwd());
+    expect(stdout).toContain("--agent");
+    expect(stdout).toContain("--sandbox");
+    expect(stdout).toContain("--model");
+    expect(stdout).toContain("--backlog-manager");
+    expect(stdout).toContain("--pipeline");
+  });
+
+  it("connect --agent nonexistent produces error listing available agents", async () => {
     const hostDir = await mkdtemp(join(tmpdir(), "cli-host-"));
-    await initRepo(hostDir);
 
     try {
-      await runCli("init --agent nonexistent", hostDir);
+      await runCli("connect demo --agent nonexistent", hostDir);
       expect.fail("Expected command to fail");
     } catch (err: unknown) {
       const { stdout, stderr } = err as { stdout: string; stderr: string };

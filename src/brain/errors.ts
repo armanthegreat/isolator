@@ -53,6 +53,17 @@ export class VaultWriteError extends Data.TaggedError("VaultWriteError")<{
 }> {}
 
 /**
+ * A vault file could not be read, or a vault glob failed. Distinguishes a
+ * read-side failure from `VaultWriteError`.
+ */
+export class VaultReadError extends Data.TaggedError("VaultReadError")<{
+  /** Absolute path that was being read, or the vault root for a glob failure. */
+  readonly path: string;
+  /** Human-readable explanation of why the read or glob failed. */
+  readonly message: string;
+}> {}
+
+/**
  * A project slug is empty or not in `kebab-case` of lowercase alphanumerics.
  */
 export class InvalidSlugError extends Data.TaggedError("InvalidSlugError")<{
@@ -94,6 +105,19 @@ export class RepoError extends Data.TaggedError("RepoError")<{
 }> {}
 
 /**
+ * A skill bundle could not be loaded — the folder is missing, has no
+ * `SKILL.md`, or a file could not be read.
+ */
+export class SkillError extends Data.TaggedError("SkillError")<{
+  /** Skill id requested. */
+  readonly skill: string;
+  /** Absolute path of the skill folder that was probed. */
+  readonly path: string;
+  /** Human-readable explanation of the failure. */
+  readonly message: string;
+}> {}
+
+/**
  * No brain vault could be resolved — none is configured and none was passed,
  * or the given path is not an initialized vault.
  */
@@ -108,11 +132,13 @@ export type BrainError =
   | ConfigInvalidError
   | ConfigWriteError
   | VaultExistsError
+  | VaultReadError
   | VaultWriteError
   | InvalidSlugError
   | ProjectExistsError
   | ProjectWriteError
   | RepoError
+  | SkillError
   | BrainNotFoundError;
 
 /** Render a brain error as a single user-facing line for the CLI. */
@@ -122,6 +148,7 @@ export const formatBrainError = (error: BrainError): string => {
       return `No isolator config found at ${error.path}.`;
     case "ConfigInvalidError":
     case "ConfigWriteError":
+    case "VaultReadError":
     case "VaultWriteError":
     case "ProjectWriteError":
     case "RepoError":
@@ -133,5 +160,7 @@ export const formatBrainError = (error: BrainError): string => {
       return `Invalid project name "${error.slug}" — use letters and numbers.`;
     case "ProjectExistsError":
       return `Project "${error.slug}" already exists at ${error.path}.`;
+    case "SkillError":
+      return `Skill "${error.skill}": ${error.message}`;
   }
 };

@@ -148,24 +148,28 @@ _Avoid_: "container hook", "remote hook"
 
 ### Init
 
-**Init**:
-The CLI command that scaffolds the **config directory** in a **host** repo.
-_Avoid_: "create", "bootstrap", "new"
+**Connect**:
+The CLI command (`isolator connect <project>`) that links a project source repo
+to a **brain**, scaffolds `projects/<slug>/` in the vault, drops a `.isolator/Dockerfile`
+into the repo, and records the project in `~/.isolator/config.yml`.
+_Avoid_: "init" (removed), "create", "bootstrap"
 
 **Config directory**:
-The `.isolator/` directory in a **host** repo containing sandbox configuration.
+The `.isolator/` directory in a project source repo. After the brain-phase-2
+cleanup it holds only the **Dockerfile** (or Containerfile) describing that
+project's sandbox image. Env vars and orchestration are no longer per-repo.
 _Avoid_: ".isolator folder", "isolator dir"
 
 **Backlog manager**:
-A pluggable source of **tasks** for the **agent**, selected during **init** (e.g. GitHub Issues, Beads).
+A pluggable source of **tasks** for the **agent**, selected during **connect** (e.g. GitHub Issues, Beads).
 _Avoid_: "task source", "issue tracker"
 
 **Template argument**:
-A named `{{KEY}}` placeholder in a scaffold template (Dockerfile, prompt `.md` file) that **init** replaces with a value derived from the user's choices.
+A named `{{KEY}}` placeholder in the Dockerfile template (e.g. `{{BACKLOG_MANAGER_TOOLS}}`) that **connect** replaces with a value derived from the user's choices.
 _Avoid_: "placeholder", "variable"
 
 **Template argument substitution**:
-The preprocessing step during **init** that replaces **template arguments** with their resolved values.
+The step during **connect** that replaces **template arguments** in the Dockerfile with their resolved values (see `renderDockerfile` in `src/brain/selectors.ts`).
 _Avoid_: "template expansion", "interpolation"
 
 ### Infrastructure
@@ -216,10 +220,10 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 - **Host hooks** run on the **host**; **sandbox hooks** run inside the **sandbox**. Hooks are grouped under `host` and `sandbox` in the `hooks` option
 - Lifecycle ordering: `copyToWorktree` -> `host.onWorktreeReady` (sequential) -> sandbox created -> `host.onSandboxReady` + `sandbox.onSandboxReady` (parallel)
 - Each **iteration** may produce one or more commits; iterations repeat until the **completion signal** fires or the max count is reached
-- **Init** creates the **config directory** on the **host**, prompting the user to select an **agent** and **backlog manager**
-- **Init** performs **template argument substitution** on Dockerfiles and scaffold `.md` files, replacing **template arguments** with values derived from the user's choices
-- Each **backlog manager** declares a Dockerfile snippet (installed via **template argument substitution**) and command placeholders for **prompt** templates
-- The **agent**'s Dockerfile template contains **template arguments** (e.g. `{{BACKLOG_MANAGER_TOOLS}}`) that **init** fills in based on the selected **backlog manager**
+- **Connect** scaffolds the **config directory** in the project source repo (the **Dockerfile** only), prompting the user to select an **agent**, **sandbox provider**, and **backlog manager**
+- **Connect** performs **template argument substitution** on the Dockerfile, replacing **template arguments** with values derived from the user's choices
+- Each **backlog manager** declares a Dockerfile snippet (installed via **template argument substitution**) and CLI commands pipelines use to read tasks
+- The **agent**'s Dockerfile template contains **template arguments** (e.g. `{{BACKLOG_MANAGER_TOOLS}}`) that **connect** fills in based on the selected **backlog manager**
 - **Build-image** and **remove-image** are namespaced under their provider in the CLI (e.g. `isolator docker build-image`)
 - The **agent provider** is selected via the `agent` field in config or `--agent` CLI flag
 - At launch, Isolator resolves env vars from **config directory** `.env` and `process.env`, then passes the full env map into the **sandbox**
@@ -321,7 +325,7 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 - **"Local"** vs **"Host"** -- Use **host** for the developer's machine. "Local" is ambiguous (the **worktree** is also on a local filesystem).
 - **"Run"** -- Can mean the JS `run()` function or a single **iteration**. Use **iteration** for one agent invocation; "run session" for a call to `run()`.
 - **"Token"** vs **"Env var"** -- Isolator handles all environment variables generically. Use "env var" for the general concept; "token" only for auth credential values.
-- **"Command"** -- Overloaded: hook commands, shell commands, CLI commands, **shell expressions**. Use **shell expression** for `` !`...` `` syntax; "hook" for lifecycle hooks; "CLI command" for `isolator init`, etc.
+- **"Command"** -- Overloaded: hook commands, shell commands, CLI commands, **shell expressions**. Use **shell expression** for `` !`...` `` syntax; "hook" for lifecycle hooks; "CLI command" for `isolator connect`, etc.
 - **"Variable"** vs **"Argument"** -- **Prompt arguments** are host-side values substituted into `{{KEY}}` placeholders. Env vars are passed into the **sandbox** environment. Don't call prompt arguments "variables".
 - **"File mode"** vs **"Log-to-file mode"** -- Use **log-to-file mode**. "File mode" is ambiguous. Similarly, avoid "stdout mode" for **terminal mode**.
 - **"Base branch"** vs **"Target branch"** -- Use **target branch**. "Base branch" is ambiguous in Isolator's context.

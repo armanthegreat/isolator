@@ -65,12 +65,66 @@ describe("connectProject", () => {
     expect(result.createdBrain).toBe(true);
     expect(await exists(join(result.projectDir, "overview.md"))).toBe(true);
     expect(await exists(join(result.repoPath, ".git"))).toBe(true);
+    expect(result.dockerfilePath).toBe(
+      join(result.repoPath, ".isolator", "Dockerfile"),
+    );
+    expect(await exists(result.dockerfilePath)).toBe(true);
+    expect(result.agent.name).toBe("claude-code");
+    expect(result.sandboxProvider.name).toBe("docker");
+    expect(result.backlogManager.name).toBe("github-issues");
+    expect(result.model).toBe("claude-opus-4-7");
 
     const config = await run(loadConfig, home);
     expect(config.vault_path).toBe(result.vaultPath);
     expect(config.projects["acme-corp"]).toEqual({
       repo_path: result.repoPath,
+      agent: "claude-code",
+      model: "claude-opus-4-7",
+      sandbox: "docker",
+      backlog_manager: "github-issues",
     });
+  });
+
+  it("persists --pipeline as default_pipeline on the project entry", async () => {
+    const home = await makeTmp();
+    const root = await makeTmp();
+
+    await run(
+      connectProject({
+        name: "demo",
+        cwd: root,
+        newBrain: join(root, "brain"),
+        newRepo: join(root, "demo"),
+        defaultPipeline: "echo",
+      }),
+      home,
+    );
+
+    const config = await run(loadConfig, home);
+    expect(config.projects["demo"]?.default_pipeline).toBe("echo");
+  });
+
+  it("renders the project Dockerfile from the chosen agent + backlog manager", async () => {
+    const home = await makeTmp();
+    const root = await makeTmp();
+
+    const result = await run(
+      connectProject({
+        name: "demo",
+        cwd: root,
+        newBrain: join(root, "brain"),
+        newRepo: join(root, "code"),
+        agent: "claude-code",
+        backlogManager: "github-issues",
+      }),
+      home,
+    );
+
+    const { readFile } = await import("node:fs/promises");
+    const content = await readFile(result.dockerfilePath, "utf8");
+    expect(content).toContain("Install Claude Code CLI");
+    expect(content).toContain("Install GitHub CLI");
+    expect(content).not.toContain("{{BACKLOG_MANAGER_TOOLS}}");
   });
 
   it("defaults the source repo to ./<slug> when no repo flag is given", async () => {

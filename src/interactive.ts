@@ -172,7 +172,7 @@ export const interactive = async (
     const isInlinePrompt = resolved?.source === "inline";
 
     // 2. Resolve env vars
-    const resolvedEnv = yield* resolveEnv(hostRepoDir);
+    const resolvedEnv = yield* resolveEnv();
     const env = mergeProviderEnv({
       resolvedEnv,
       agentProviderEnv: provider.env,

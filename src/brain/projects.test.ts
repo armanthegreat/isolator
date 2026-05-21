@@ -109,7 +109,7 @@ describe("registerProject", () => {
   };
 
   it("adds a project entry while preserving existing ones", () => {
-    const next = registerProject(base, "acme", "/code/acme");
+    const next = registerProject(base, "acme", { repoPath: "/code/acme" });
 
     expect(next.projects).toEqual({
       existing: { repo_path: "/code/existing" },
@@ -121,8 +121,40 @@ describe("registerProject", () => {
   });
 
   it("re-points an already-registered slug", () => {
-    const next = registerProject(base, "existing", "/code/moved");
+    const next = registerProject(base, "existing", {
+      repoPath: "/code/moved",
+    });
 
     expect(next.projects.existing).toEqual({ repo_path: "/code/moved" });
+  });
+
+  it("persists agent/model/sandbox/backlog/default_pipeline when provided", () => {
+    const next = registerProject(base, "acme", {
+      repoPath: "/code/acme",
+      agent: "claude-code",
+      model: "claude-opus-4-7",
+      sandbox: "docker",
+      backlogManager: "github-issues",
+      defaultPipeline: "echo",
+    });
+    expect(next.projects.acme).toEqual({
+      repo_path: "/code/acme",
+      agent: "claude-code",
+      model: "claude-opus-4-7",
+      sandbox: "docker",
+      backlog_manager: "github-issues",
+      default_pipeline: "echo",
+    });
+  });
+
+  it("omits undefined optional fields", () => {
+    const next = registerProject(base, "acme", {
+      repoPath: "/code/acme",
+      agent: "claude-code",
+    });
+    expect(next.projects.acme).toEqual({
+      repo_path: "/code/acme",
+      agent: "claude-code",
+    });
   });
 });

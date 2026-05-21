@@ -63,7 +63,8 @@ export interface CreateSandboxOptions {
   readonly sandbox: SandboxProvider;
   /**
    * Host repo directory. Replaces `process.cwd()` as the anchor for
-   * `.isolator/worktrees/`, `.isolator/.env`, and git operations.
+   * `.isolator/worktrees/` and git operations. (Env vars are resolved from
+   * the central `~/.isolator/.env`, not the host repo.)
    *
    * - Relative paths are resolved against `process.cwd()`.
    * - Absolute paths are used as-is.
@@ -551,7 +552,7 @@ export const createSandboxFromWorktree = async (
     sandboxRepoDir = worktreePath;
   } else {
     const resolvedEnv = await Effect.runPromise(
-      resolveEnv(hostRepoDir).pipe(Effect.provide(NodeContext.layer)),
+      resolveEnv().pipe(Effect.provide(NodeContext.layer)),
     );
     const env = mergeProviderEnv({
       resolvedEnv,
@@ -733,7 +734,7 @@ export const createSandbox = async (
   } else {
     // Provider mode: delegate to the shared startSandbox helper
     const resolvedEnv = await Effect.runPromise(
-      resolveEnv(hostRepoDir).pipe(Effect.provide(NodeContext.layer)),
+      resolveEnv().pipe(Effect.provide(NodeContext.layer)),
     );
     const env = mergeProviderEnv({
       resolvedEnv,

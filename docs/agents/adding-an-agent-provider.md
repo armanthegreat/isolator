@@ -4,7 +4,7 @@ This document is for contributors adding support for a new **agent** (e.g. Claud
 
 1. [Evaluating a new agent](#evaluating-a-new-agent) — the questionnaire used to decide whether an agent's CLI can be supported.
 2. [The `AgentProvider` interface](#the-agentprovider-interface) — what you implement.
-3. [Scaffold integration](#scaffold-integration) — what `isolator init` needs to offer the agent.
+3. [Scaffold integration](#scaffold-integration) — what `isolator connect` needs to offer the agent.
 4. [Implementation checklist](#implementation-checklist) — every file to touch.
 
 For terminology (**agent**, **agent provider**, **sandbox**, etc.), see [`CONTEXT.md`](../../CONTEXT.md).
@@ -54,7 +54,7 @@ These unlock extra Isolator features but are not required:
 
 ### Scaffold prerequisites
 
-For `isolator init` to offer the agent:
+For `isolator connect` to offer the agent:
 
 - A reproducible install command (npm package, install script, etc.) that works inside a Debian-based Docker image.
 - A documented set of env vars for auth.
@@ -130,7 +130,7 @@ Before writing code, **verify session-ID round-trip stability empirically**: run
 
 ## Scaffold integration
 
-For the agent to appear in `isolator init`, add an entry to `AGENT_REGISTRY` in [`src/InitService.ts`](../../src/InitService.ts):
+For the agent to appear in `isolator connect`, add an entry to `AGENT_REGISTRY` in [`src/brain/selectors.ts`](../../src/brain/selectors.ts):
 
 ```ts
 {
@@ -158,7 +158,6 @@ For a new agent provider `foo`:
 - [ ] Tests in `src/AgentProvider.test.ts` covering `buildPrintCommand` (both fresh and resume forms), `buildInteractiveArgs`, and stream parsing — including session-ID extraction and error events on stdout if applicable.
 - [ ] Tests covering `sessionStorage` round-trip: write, read, transfer host↔sandbox, content preserved (and rewritten correctly if `foo`'s format requires it).
 - [ ] Public export from [`src/index.ts`](../../src/index.ts): the `foo` factory and the `FooOptions` type.
-- [ ] `AGENT_REGISTRY` entry in [`src/InitService.ts`](../../src/InitService.ts).
-- [ ] `FOO_DOCKERFILE` constant in `src/InitService.ts`.
-- [ ] Changeset in `.changeset/` (patch, since pre-1.0). See [`CLAUDE.md`](../../CLAUDE.md).
+- [ ] `AGENT_REGISTRY` entry in [`src/brain/selectors.ts`](../../src/brain/selectors.ts).
+- [ ] `FOO_DOCKERFILE` constant in `src/brain/selectors.ts`.
 - [ ] `README.md` update if the public-facing list of supported agents is mentioned there.

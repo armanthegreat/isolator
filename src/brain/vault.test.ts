@@ -1,10 +1,17 @@
 import { NodeContext } from "@effect/platform-node";
 import { Effect } from "effect";
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { scaffoldVault, VAULT_DIRS } from "./vault.ts";
+import {
+  expandSlug,
+  expandSlugs,
+  globVault,
+  readNote,
+  scaffoldVault,
+  VAULT_DIRS,
+} from "./vault.ts";
 
 const makeTmp = () => mkdtemp(join(tmpdir(), "isolator-vault-"));
 
@@ -74,5 +81,121 @@ describe("scaffoldVault", () => {
     const error = await runError(dir);
     expect(error._tag).toBe("VaultExistsError");
     expect(error.path).toBe(resolve(dir));
+  });
+});
+
+const seed = async (vault: string, files: Record<string, string>) => {
+  await mkdir(vault, { recursive: true });
+  for (const [relPath, contents] of Object.entries(files)) {
+    const absolute = join(vault, relPath);
+    await mkdir(dirname(absolute), { recursive: true });
+    await writeFile(absolute, contents, "utf8");
+  }
+};
+
+describe("expandSlug / expandSlugs", () => {
+  it("substitutes every $slug occurrence", () => {
+    expect(expandSlug("projects/$slug/$slug.md", "demo")).toBe(
+      "projects/demo/demo.md",
+    );
+  });
+
+  it("returns the pattern unchanged when no $slug appears", () => {
+    expect(expandSlug("rules/product/*", "demo")).toBe("rules/product/*");
+  });
+
+  it("expands an array of patterns in order", () => {
+    expect(expandSlugs(["a/$slug.md", "b/$slug/**"], "demo")).toStrictEqual([
+      "a/demo.md",
+      "b/demo/**",
+    ]);
+  });
+});
+
+describe("readNote", () => {
+  it("reads a vault note as UTF-8 text", async () => {
+    const vault = join(await makeTmp(), "brain");
+    await seed(vault, { "system/base.md": "# base" });
+
+    const text = await Effect.runPromise(
+      readNote(vault, "system/base.md").pipe(Effect.provide(NodeContext.layer)),
+    );
+
+    expect(text).toBe("# base");
+  });
+
+  it("fails with VaultReadError when the file is missing", async () => {
+    const vault = join(await makeTmp(), "brain");
+    await mkdir(vault, { recursive: true });
+
+    const error = await Effect.runPromise(
+      readNote(vault, "system/missing.md").pipe(
+        Effect.provide(NodeContext.layer),
+        Effect.flip,
+      ),
+    );
+
+    expect(error._tag).toBe("VaultReadError");
+    expect(error.path).toBe(join(vault, "system/missing.md"));
+  });
+});
+
+describe("globVault", () => {
+  it("returns vault-relative matches with their source pattern", async () => {
+    const vault = join(await makeTmp(), "brain");
+    await seed(vault, {
+      "skills/prd/SKILL.md": "skill",
+      "skills/prd/notes.md": "notes",
+      "rules/product/scope.md": "scope",
+    });
+
+    const matches = await Effect.runPromise(
+      globVault(vault, ["skills/prd/**", "rules/product/*"]),
+    );
+
+    expect(matches.map((m) => m.path).sort()).toStrictEqual([
+      "rules/product/scope.md",
+      "skills/prd/SKILL.md",
+      "skills/prd/notes.md",
+    ]);
+    const skill = matches.find((m) => m.path === "skills/prd/SKILL.md");
+    expect(skill?.reason).toBe("skills/prd/**");
+  });
+
+  it("substitutes $slug when the option is given", async () => {
+    const vault = join(await makeTmp(), "brain");
+    await seed(vault, {
+      "projects/demo/discovery/idea.md": "idea",
+      "projects/other/discovery/idea.md": "other-idea",
+    });
+
+    const matches = await Effect.runPromise(
+      globVault(vault, ["projects/$slug/discovery/**"], { slug: "demo" }),
+    );
+
+    expect(matches.map((m) => m.path)).toStrictEqual([
+      "projects/demo/discovery/idea.md",
+    ]);
+  });
+
+  it("records the first matching pattern as the reason for a duplicate", async () => {
+    const vault = join(await makeTmp(), "brain");
+    await seed(vault, { "skills/prd/SKILL.md": "skill" });
+
+    const matches = await Effect.runPromise(
+      globVault(vault, ["skills/prd/SKILL.md", "skills/**"]),
+    );
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.reason).toBe("skills/prd/SKILL.md");
+  });
+
+  it("returns an empty array when nothing matches", async () => {
+    const vault = join(await makeTmp(), "brain");
+    await mkdir(vault, { recursive: true });
+
+    const matches = await Effect.runPromise(globVault(vault, ["skills/**"]));
+
+    expect(matches).toStrictEqual([]);
   });
 });

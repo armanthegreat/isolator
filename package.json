@@ -22,11 +22,7 @@
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky",
-    "isolator": "node .isolator/run.ts",
-    "test-podman": "node --env-file=.isolator/.env .isolator/test-podman.ts",
-    "test-vercel": "node --env-file=.isolator/.env .isolator/test-vercel.ts",
-    "test-interactive": "node --env-file=.isolator/.env .isolator/test-interactive.ts"
+    "prepare": "husky"
   },
   "keywords": [
     "cli",
@@ -59,6 +55,7 @@
     "@effect/printer": "^0.48.0",
     "@effect/printer-ansi": "^0.48.0",
     "effect": "^3.20.0",
+    "fast-glob": "^3.3.3",
     "yaml": "^2.9.0"
   },
   "peerDependencies": {

@@ -10,7 +10,7 @@ A `cwd` option addresses this, but raises a question: when a user passes `cwd: "
 
 Add `cwd?: string` to all four programmatic entry points. Relative paths resolve against `process.cwd()`; absolute pass through. Default is `process.cwd()`. The CLI does not get `--cwd` — users `cd` first.
 
-`promptFile` is **not** re-rooted under `cwd`. It is resolved as an ordinary Node file path, against `process.cwd()`. Only host-repo-derived paths (`.isolator/worktrees/`, `.isolator/.env`, `.isolator/logs/`, `.isolator/patches/`) follow `cwd`.
+`promptFile` is **not** re-rooted under `cwd`. It is resolved as an ordinary Node file path, against `process.cwd()`. Only host-repo-derived paths (`.isolator/worktrees/`, `.isolator/logs/`, `.isolator/patches/`) follow `cwd`. (Env vars are resolved from the central `~/.isolator/.env`; they were once read from a per-repo `.isolator/.env` that followed `cwd`, removed in the brain-phase-2 cleanup.)
 
 The rejected alternative was to resolve relative `promptFile` against `cwd`, so `"./.isolator/prompt.md"` would always mean "the prompt inside the isolator project." That reads natural in examples, but it makes `promptFile` behave unlike every other file path a user passes to a Node API — surprising when debugging.
 

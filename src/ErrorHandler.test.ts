@@ -79,21 +79,22 @@ describe("formatErrorMessage", () => {
     expect(msg).toContain("claude not installed");
   });
 
-  it("ConfigDirError passes through message (includes init hint)", () => {
+  it("ConfigDirError passes through message (includes connect hint)", () => {
     const msg = formatErrorMessage(
       new ConfigDirError({
-        message: "No .isolator/ found. Run `isolator init` first.",
+        message:
+          "No .isolator/ found. Connect this repo with `isolator connect <project>` first.",
       }),
     );
     expect(msg).toContain("No .isolator/");
-    expect(msg).toContain("isolator init");
+    expect(msg).toContain("isolator connect");
   });
 
   it("InitError passes through message", () => {
     const msg = formatErrorMessage(
-      new InitError({ message: 'Unknown template "foo".' }),
+      new InitError({ message: 'Unknown pipeline "foo".' }),
     );
-    expect(msg).toContain("Unknown template");
+    expect(msg).toContain("Unknown pipeline");
   });
 
   it("AgentIdleTimeoutError passes through message", () => {
@@ -155,7 +156,8 @@ describe("withFriendlyErrors", () => {
       withFriendlyErrors(
         Effect.fail(
           new ConfigDirError({
-            message: "No .isolator/ found. Run `isolator init` first.",
+            message:
+              "No .isolator/ found. Connect this repo with `isolator connect <project>` first.",
           }),
         ),
       ),

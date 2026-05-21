@@ -5,7 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { isolatorHomeLayer, saveConfig } from "./config.ts";
-import { runStep, type StepRunner } from "./run-step.ts";
+import {
+  gate,
+  PausedForApproval,
+  runStep,
+  type StepRunner,
+} from "./run-step.ts";
 import { scaffoldVault } from "./vault.ts";
 
 /**
@@ -87,7 +92,10 @@ describe("runStep", () => {
     expect(result.artifactPath).toBe(
       join(vault, "projects", "demo", "echo.md"),
     );
-    expect(await readFile(result.artifactPath, "utf-8")).toBe("ISOLATOR\n");
+    const written = await readFile(result.artifactPath, "utf-8");
+    expect(written).toContain("artifact_type: echo");
+    expect(written).toContain("version: 1");
+    expect(written).toMatch(/---\n[\s\S]+?\n---\nISOLATOR\n/);
   });
 
   it("appends a telemetry record to system/runs.jsonl", async () => {
@@ -177,5 +185,102 @@ describe("runStep", () => {
     const record = JSON.parse(log.trim()) as Record<string, unknown>;
     expect(record.success).toBe(false);
     expect(record.artifact_paths).toEqual([]);
+  });
+
+  it("writes a context manifest when context globs are supplied", async () => {
+    const { home, vault } = await setup();
+    await import("node:fs/promises").then((m) =>
+      m.writeFile(join(vault, "rules", "scope.md"), "rule body", "utf8"),
+    );
+    const { runner } = makeFakeRunner("ECHO");
+
+    const result = await runStep({
+      project: "demo",
+      id: "echo",
+      prompt: "say",
+      output: { type: "echo", path: "echo.md" },
+      context: ["rules/**"],
+      home,
+      runner,
+    });
+
+    expect(result.contextManifestPath).toMatch(
+      /runs\/.*\/context-manifest\.yml$/,
+    );
+    const manifest = await readFile(
+      join(vault, result.contextManifestPath!),
+      "utf8",
+    );
+    expect(manifest).toContain("scope.md");
+  });
+
+  it("runs validators and marks the step failed when one fails", async () => {
+    const { home } = await setup();
+    const { runner } = makeFakeRunner("ECHO");
+
+    const result = await runStep({
+      project: "demo",
+      id: "echo",
+      prompt: "say",
+      output: { type: "echo", path: "echo.md" },
+      outputs: [
+        { type: "echo", path: "echo.md" },
+        { type: "missing", path: "missing.md" },
+      ],
+      validate: ["all_required_outputs_exist"],
+      home,
+      runner,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.validation).toHaveLength(1);
+    expect(result.validation[0]?.passed).toBe(false);
+  });
+});
+
+describe("gate", () => {
+  it("throws PausedForApproval when the artifact has not been approved", async () => {
+    const { home } = await setup();
+    const { runner } = makeFakeRunner("ECHO");
+
+    const result = await runStep({
+      project: "demo",
+      id: "echo",
+      prompt: "say",
+      output: { type: "echo", path: "echo.md" },
+      gate: "scope_approval",
+      home,
+      runner,
+    });
+
+    await expect(gate("scope_approval", result)).rejects.toBeInstanceOf(
+      PausedForApproval,
+    );
+  });
+
+  it("returns silently when the artifact has been approved", async () => {
+    const { home } = await setup();
+    const { runner } = makeFakeRunner("ECHO");
+
+    const first = await runStep({
+      project: "demo",
+      id: "echo",
+      prompt: "say",
+      output: { type: "echo", path: "echo.md" },
+      gate: "scope_approval",
+      home,
+      runner,
+    });
+
+    // Mark the artifact approved by rewriting its frontmatter.
+    const { readFile: rf, writeFile: wf } = await import("node:fs/promises");
+    const current = await rf(first.artifactPath, "utf8");
+    await wf(
+      first.artifactPath,
+      current.replace("status: draft", "status: approved"),
+      "utf8",
+    );
+
+    await expect(gate("scope_approval", first)).resolves.toBeUndefined();
   });
 });
