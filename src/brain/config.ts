@@ -2,8 +2,12 @@ import { FileSystem } from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { parse as parseYaml } from "yaml";
-import { ConfigInvalidError, ConfigNotFoundError } from "./errors.ts";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import {
+  ConfigInvalidError,
+  ConfigNotFoundError,
+  ConfigWriteError,
+} from "./errors.ts";
 import { IsolatorConfig } from "./schemas.ts";
 
 /**
@@ -83,3 +87,54 @@ export const loadConfig: Effect.Effect<
     ),
   );
 });
+
+/**
+ * Write the central isolator config (`~/.isolator/config.yml`), creating the
+ * isolator home directory if it does not exist. Overwrites any existing file.
+ *
+ * The config is schema-encoded before serialization so a malformed value is
+ * caught here rather than on the next {@link loadConfig}. Fails with
+ * `ConfigWriteError` when encoding, directory creation, or the write fails.
+ */
+export const saveConfig = (
+  config: IsolatorConfig,
+): Effect.Effect<
+  void,
+  ConfigWriteError,
+  IsolatorHome | FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    const home = yield* IsolatorHome;
+    const fs = yield* FileSystem.FileSystem;
+    const path = join(home.dir, CONFIG_FILENAME);
+
+    const encoded = yield* Schema.encode(IsolatorConfig)(config).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ConfigWriteError({
+            path,
+            message: `Config does not match the expected shape:\n${cause.message}`,
+          }),
+      ),
+    );
+
+    yield* fs.makeDirectory(home.dir, { recursive: true }).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ConfigWriteError({
+            path,
+            message: `Could not create the isolator home directory: ${cause}`,
+          }),
+      ),
+    );
+
+    yield* fs.writeFileString(path, stringifyYaml(encoded)).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ConfigWriteError({
+            path,
+            message: `Could not write config file: ${cause}`,
+          }),
+      ),
+    );
+  });

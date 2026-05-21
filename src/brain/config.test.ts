@@ -4,7 +4,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isolatorHomeLayer, loadConfig } from "./config.ts";
+import { isolatorHomeLayer, loadConfig, saveConfig } from "./config.ts";
+import type { IsolatorConfig } from "./schemas.ts";
 
 const makeHome = () => mkdtemp(join(tmpdir(), "isolator-home-"));
 
@@ -20,6 +21,15 @@ const load = (dir: string) => Effect.runPromise(resolved(dir));
 /** Run `loadConfig` expecting failure; resolves to the typed error. */
 const loadError = (dir: string) =>
   Effect.runPromise(resolved(dir).pipe(Effect.flip));
+
+/** Run `saveConfig` expecting success. */
+const save = (dir: string, config: IsolatorConfig) =>
+  Effect.runPromise(
+    saveConfig(config).pipe(
+      Effect.provide(isolatorHomeLayer(dir)),
+      Effect.provide(NodeContext.layer),
+    ),
+  );
 
 describe("loadConfig", () => {
   it("loads and validates a complete config.yml", async () => {
@@ -99,5 +109,39 @@ describe("loadConfig", () => {
 
     const error = await loadError(dir);
     expect(error._tag).toBe("ConfigInvalidError");
+  });
+});
+
+describe("saveConfig", () => {
+  it("round-trips a config through saveConfig + loadConfig", async () => {
+    const dir = await makeHome();
+    const original: IsolatorConfig = {
+      vault_path: "/home/me/brain",
+      defaults: { agent: "claude-code", model: "claude-opus-4-7" },
+      projects: { acme: { repo_path: "/home/me/code/acme" } },
+    };
+
+    await save(dir, original);
+    expect(await load(dir)).toEqual(original);
+  });
+
+  it("creates the isolator home directory when it is absent", async () => {
+    const parent = await makeHome();
+    const dir = join(parent, "nested", "isolator");
+
+    await save(dir, {
+      vault_path: "/home/me/brain",
+      defaults: {},
+      projects: {},
+    });
+    expect((await load(dir)).vault_path).toBe("/home/me/brain");
+  });
+
+  it("overwrites an existing config", async () => {
+    const dir = await makeHome();
+
+    await save(dir, { vault_path: "/first", defaults: {}, projects: {} });
+    await save(dir, { vault_path: "/second", defaults: {}, projects: {} });
+    expect((await load(dir)).vault_path).toBe("/second");
   });
 });
