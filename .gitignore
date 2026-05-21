@@ -2,3 +2,7 @@ node_modules
 dist
 .env.*
 .vercel
+
+# Local-only planning / vision docs — kept out of the public repo
+plan.md
+ideas/Forge-v0.3.md
