@@ -2,7 +2,7 @@ import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SANDBOX_REPO_DIR } from "./SandboxFactory.js";
+import { SANDBOX_REPO_DIR } from "./SandboxFactory.ts";
 
 const GITIGNORE = `.env
 logs/
@@ -67,7 +67,7 @@ RUN apt-get update && apt-get install -y \\
 
 {{BACKLOG_MANAGER_TOOLS}}
 
-# Build-args for UID/GID alignment: sandcastle docker build-image
+# Build-args for UID/GID alignment: isolator docker build-image
 # defaults these to the host user's UID/GID so image-built files
 # and bind-mounted files share an owner without runtime chown.
 ARG AGENT_UID=1000
@@ -85,7 +85,7 @@ ENV PATH="/home/agent/.local/bin:$PATH"
 
 WORKDIR /home/agent
 
-# In worktree sandbox mode, Sandcastle bind-mounts the git worktree at ${SANDBOX_REPO_DIR}
+# In worktree sandbox mode, Isolator bind-mounts the git worktree at ${SANDBOX_REPO_DIR}
 # and overrides the working directory to ${SANDBOX_REPO_DIR} at container start.
 # Structure your Dockerfile so that ${SANDBOX_REPO_DIR} can serve as the project root.
 ENTRYPOINT ["sleep", "infinity"]
@@ -102,7 +102,7 @@ RUN apt-get update && apt-get install -y \\
 
 {{BACKLOG_MANAGER_TOOLS}}
 
-# Build-args for UID/GID alignment: sandcastle docker build-image
+# Build-args for UID/GID alignment: isolator docker build-image
 # defaults these to the host user's UID/GID so image-built files
 # and bind-mounted files share an owner without runtime chown.
 ARG AGENT_UID=1000
@@ -118,7 +118,7 @@ USER \${AGENT_UID}:\${AGENT_GID}
 
 WORKDIR /home/agent
 
-# In worktree sandbox mode, Sandcastle bind-mounts the git worktree at ${SANDBOX_REPO_DIR}
+# In worktree sandbox mode, Isolator bind-mounts the git worktree at ${SANDBOX_REPO_DIR}
 # and overrides the working directory to ${SANDBOX_REPO_DIR} at container start.
 # Structure your Dockerfile so that ${SANDBOX_REPO_DIR} can serve as the project root.
 ENTRYPOINT ["sleep", "infinity"]
@@ -135,7 +135,7 @@ RUN apt-get update && apt-get install -y \\
 
 {{BACKLOG_MANAGER_TOOLS}}
 
-# Build-args for UID/GID alignment: sandcastle docker build-image
+# Build-args for UID/GID alignment: isolator docker build-image
 # defaults these to the host user's UID/GID so image-built files
 # and bind-mounted files share an owner without runtime chown.
 ARG AGENT_UID=1000
@@ -151,7 +151,7 @@ USER \${AGENT_UID}:\${AGENT_GID}
 
 WORKDIR /home/agent
 
-# In worktree sandbox mode, Sandcastle bind-mounts the git worktree at ${SANDBOX_REPO_DIR}
+# In worktree sandbox mode, Isolator bind-mounts the git worktree at ${SANDBOX_REPO_DIR}
 # and overrides the working directory to ${SANDBOX_REPO_DIR} at container start.
 # Structure your Dockerfile so that ${SANDBOX_REPO_DIR} can serve as the project root.
 ENTRYPOINT ["sleep", "infinity"]
@@ -168,7 +168,7 @@ RUN apt-get update && apt-get install -y \\
 
 {{BACKLOG_MANAGER_TOOLS}}
 
-# Build-args for UID/GID alignment: sandcastle docker build-image
+# Build-args for UID/GID alignment: isolator docker build-image
 # defaults these to the host user's UID/GID so image-built files
 # and bind-mounted files share an owner without runtime chown.
 ARG AGENT_UID=1000
@@ -184,7 +184,7 @@ USER \${AGENT_UID}:\${AGENT_GID}
 
 WORKDIR /home/agent
 
-# In worktree sandbox mode, Sandcastle bind-mounts the git worktree at \${SANDBOX_REPO_DIR}
+# In worktree sandbox mode, Isolator bind-mounts the git worktree at \${SANDBOX_REPO_DIR}
 # and overrides the working directory to \${SANDBOX_REPO_DIR} at container start.
 # Structure your Dockerfile so that \${SANDBOX_REPO_DIR} can serve as the project root.
 ENTRYPOINT ["sleep", "infinity"]
@@ -197,9 +197,14 @@ const AGENT_REGISTRY: AgentEntry[] = [
     defaultModel: "claude-opus-4-7",
     factoryImport: "claudeCode",
     dockerfileTemplate: CLAUDE_CODE_DOCKERFILE,
-    envExample: `# Anthropic API key
-# If you want to use your Claude subscription instead of an API key, see https://github.com/mattpocock/sandcastle/issues/191
-ANTHROPIC_API_KEY=`,
+    envExample: `# Claude Code authentication — set ONE of the following.
+#
+# Recommended: use your Claude Pro/Max subscription. Run \`claude setup-token\`
+# on the host once, then paste the long-lived token here:
+CLAUDE_CODE_OAUTH_TOKEN=
+#
+# Alternative: an Anthropic API key (billed per token):
+# ANTHROPIC_API_KEY=`,
   },
   {
     name: "pi",
@@ -276,9 +281,9 @@ const BACKLOG_MANAGER_REGISTRY: BacklogManagerEntry[] = [
     name: "github-issues",
     label: "GitHub Issues",
     templateArgs: {
-      LIST_TASKS_COMMAND: `gh issue list --state open --label Sandcastle --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'`,
+      LIST_TASKS_COMMAND: `gh issue list --state open --label Isolator --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'`,
       VIEW_TASK_COMMAND: "gh issue view <ID>",
-      CLOSE_TASK_COMMAND: `gh issue close <ID> --comment "Completed by Sandcastle"`,
+      CLOSE_TASK_COMMAND: `gh issue close <ID> --comment "Completed by Isolator"`,
       BACKLOG_MANAGER_TOOLS: GITHUB_CLI_TOOLS,
     },
     envExample: `# GitHub personal access token
@@ -290,7 +295,7 @@ GH_TOKEN=`,
     templateArgs: {
       LIST_TASKS_COMMAND: "bd ready --json",
       VIEW_TASK_COMMAND: "bd show <ID>",
-      CLOSE_TASK_COMMAND: `bd close <ID> "Completed by Sandcastle"`,
+      CLOSE_TASK_COMMAND: `bd close <ID> "Completed by Isolator"`,
       BACKLOG_MANAGER_TOOLS: BEADS_TOOLS,
     },
     envExample: "",
@@ -315,7 +320,7 @@ export const getAgent = (name: string): AgentEntry | undefined =>
 export interface SandboxProviderEntry {
   readonly name: string;
   readonly label: string;
-  /** Filename written to .sandcastle/ (e.g. "Dockerfile" or "Containerfile") */
+  /** Filename written to .isolator/ (e.g. "Dockerfile" or "Containerfile") */
   readonly containerfileName: string;
   /** CLI namespace for build/remove commands (e.g. "docker" or "podman") */
   readonly cliNamespace: string;
@@ -355,30 +360,30 @@ export function getNextStepsLines(
   if (template === "blank") {
     return [
       "Next steps:",
-      `1. Set the required env vars in .sandcastle/.env (see .sandcastle/.env.example)`,
-      "   If you want to use your Claude subscription instead of an API key, see https://github.com/mattpocock/sandcastle/issues/191",
-      "2. Read and customize .sandcastle/prompt.md to describe what you want the agent to do",
-      `3. Customize .sandcastle/${mainFilename} — it uses the JS API (\`run()\`) to control how the agent runs`,
-      `4. Add "sandcastle": "npx tsx .sandcastle/${mainFilename}" to your package.json scripts`,
-      "5. Run `npm run sandcastle` to start the agent",
+      `1. Set the required env vars in .isolator/.env (see .isolator/.env.example)`,
+      "   If you want to use your Claude subscription instead of an API key, see https://github.com/armanthegreat/isolator/issues/191",
+      "2. Read and customize .isolator/prompt.md to describe what you want the agent to do",
+      `3. Customize .isolator/${mainFilename} — it uses the JS API (\`run()\`) to control how the agent runs`,
+      `4. Add "isolator": "npx tsx .isolator/${mainFilename}" to your package.json scripts`,
+      "5. Run `npm run isolator` to start the agent",
     ];
   } else {
     const hasReviewer = template.includes("review");
     let step = 1;
     const lines: string[] = [
       "Next steps:",
-      `${step++}. Set the required env vars in .sandcastle/.env (see .sandcastle/.env.example)`,
-      "   If you want to use your Claude subscription instead of an API key, see https://github.com/mattpocock/sandcastle/issues/191",
-      `${step++}. Add "sandcastle": "npx tsx .sandcastle/${mainFilename}" to your package.json scripts`,
+      `${step++}. Set the required env vars in .isolator/.env (see .isolator/.env.example)`,
+      "   If you want to use your Claude subscription instead of an API key, see https://github.com/armanthegreat/isolator/issues/191",
+      `${step++}. Add "isolator": "npx tsx .isolator/${mainFilename}" to your package.json scripts`,
       `${step++}. Templates use \`copyToWorktree: ["node_modules"]\` to copy your host node_modules into the sandbox for fast startup — the \`npm install\` in the onSandboxReady hook is a safety net for platform-specific binaries. Adjust both if you use a different package manager`,
-      `${step++}. Read and customize the prompt files in .sandcastle/ — they shape what the agent does`,
+      `${step++}. Read and customize the prompt files in .isolator/ — they shape what the agent does`,
     ];
     if (hasReviewer) {
       lines.push(
-        `${step++}. Customize .sandcastle/CODING_STANDARDS.md with your project's standards — the reviewer agent loads it during review`,
+        `${step++}. Customize .isolator/CODING_STANDARDS.md with your project's standards — the reviewer agent loads it during review`,
       );
     }
-    lines.push(`${step++}. Run \`npm run sandcastle\` to start the agent`);
+    lines.push(`${step++}. Run \`npm run isolator\` to start the agent`);
     return lines;
   }
 }
@@ -496,7 +501,7 @@ const rewriteMainTs = (
   });
 
 /**
- * When the user opted out of the Sandcastle label, strip ` --label Sandcastle`
+ * When the user opted out of the Isolator label, strip ` --label Isolator`
  * from all `.md` files in the scaffolded config directory so that `gh issue list`
  * commands work without a label filter.
  */
@@ -516,7 +521,7 @@ const rewritePromptFiles = (
           const content = yield* fs
             .readFileString(filePath)
             .pipe(Effect.mapError((e) => new Error(e.message)));
-          const updated = content.replace(/ --label Sandcastle/g, "");
+          const updated = content.replace(/ --label Isolator/g, "");
           if (updated !== content) {
             yield* fs
               .writeFileString(filePath, updated)
@@ -646,7 +651,7 @@ export const scaffold = (
       sandboxProvider = SANDBOX_PROVIDER_REGISTRY[0]!, // default: docker
     } = options;
     const fs = yield* FileSystem.FileSystem;
-    const configDir = join(repoDir, ".sandcastle");
+    const configDir = join(repoDir, ".isolator");
 
     const exists = yield* fs
       .exists(configDir)
@@ -654,7 +659,7 @@ export const scaffold = (
     if (exists) {
       yield* Effect.fail(
         new Error(
-          ".sandcastle/ directory already exists. Remove it first if you want to re-initialize.",
+          ".isolator/ directory already exists. Remove it first if you want to re-initialize.",
         ),
       );
     }
@@ -699,7 +704,7 @@ export const scaffold = (
     // Replace backlog manager template arguments in all text files (must run before label stripping)
     yield* substituteTemplateArgs(configDir, backlogManager);
 
-    // Strip --label Sandcastle from prompt files when the user declined label creation
+    // Strip --label Isolator from prompt files when the user declined label creation
     if (!createLabel) {
       yield* rewritePromptFiles(configDir);
     }

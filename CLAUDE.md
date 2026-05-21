@@ -1,4 +1,6 @@
-Use `npm run typecheck` for type checking.
+This repo uses **pnpm** — always use `pnpm` / `pnpm run` / `pnpm dlx`, never `npm`/`npx`/`yarn`.
+
+Use `pnpm run typecheck` for type checking.
 
 Check [./CONTEXT.md](./CONTEXT.md) for terminology questions.
 
@@ -10,7 +12,7 @@ When changing public-facing behavior, check `README.md` to see if the documentat
 
 ### Issue tracker
 
-Issues live as GitHub issues in `mattpocock/sandcastle`. See `docs/agents/issue-tracker.md`.
+Issues live as GitHub issues in `armanthegreat/isolator`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

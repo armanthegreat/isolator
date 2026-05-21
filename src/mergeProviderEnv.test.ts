@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeProviderEnv } from "./mergeProviderEnv.js";
+import { mergeProviderEnv } from "./mergeProviderEnv.ts";
 
 describe("mergeProviderEnv", () => {
   it("returns env resolver output when no provider env is set", () => {

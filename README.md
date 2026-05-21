@@ -1,25 +1,25 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/total-typescript/image/upload/v1775033787/readme-sandcastle-ondark_2x.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://res.cloudinary.com/total-typescript/image/upload/v1775033787/readme-sandcastle-onlight_2x.png">
-    <img alt="Sandcastle" src="https://res.cloudinary.com/total-typescript/image/upload/v1775033787/readme-sandcastle-onlight_2x.png" height="200" style="margin-bottom: 20px;">
+    <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/total-typescript/image/upload/v1775033787/readme-isolator-ondark_2x.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://res.cloudinary.com/total-typescript/image/upload/v1775033787/readme-isolator-onlight_2x.png">
+    <img alt="Isolator" src="https://res.cloudinary.com/total-typescript/image/upload/v1775033787/readme-isolator-onlight_2x.png" height="200" style="margin-bottom: 20px;">
   </picture>
 </div>
 
-## What Is Sandcastle?
+## What Is Isolator?
 
 A TypeScript library for orchestrating AI coding agents in isolated sandboxes:
 
-1. You invoke agents with a single `sandcastle.run()`.
-2. Sandcastle handles sandboxing the agent with a configurable branch strategy.
+1. You invoke agents with a single `isolator.run()`.
+2. Isolator handles sandboxing the agent with a configurable branch strategy.
 3. The commits made on the branches get merged back.
 
-Sandcastle is provider-agnostic — it ships with built-in providers for Docker, Podman, and Vercel, and you can create your own. Great for parallelizing multiple AFK agents, creating review pipelines, or even just orchestrating your own agents.
+Isolator is provider-agnostic — it ships with built-in providers for Docker, Podman, and Vercel, and you can create your own. Great for parallelizing multiple AFK agents, creating review pipelines, or even just orchestrating your own agents.
 
 ## Prerequisites
 
 - [Git](https://git-scm.com/)
-- A sandbox provider — Sandcastle needs an isolated environment to run agents in. Built-in options:
+- A sandbox provider — Isolator needs an isolated environment to run agents in. Built-in options:
   - [Docker Desktop](https://www.docker.com/) — most common for local development
   - [Podman](https://podman.io/) — rootless alternative to Docker
   - [Vercel](https://vercel.com/) — cloud-based Firecracker microVMs via `@vercel/sandbox`
@@ -30,57 +30,57 @@ Sandcastle is provider-agnostic — it ships with built-in providers for Docker,
 1. Install the package:
 
 ```bash
-npm install --save-dev @ai-hero/sandcastle
+npm install --save-dev isolator
 ```
 
-2. Run `sandcastle init`. This scaffolds a `.sandcastle` directory with all the files needed.
+2. Run `isolator init`. This scaffolds a `.isolator` directory with all the files needed.
 
 ```bash
-npx sandcastle init
+npx isolator init
 ```
 
-3. Edit `.sandcastle/.env` and fill in your default values for `ANTHROPIC_API_KEY`. If you want to use your Claude subscription instead of an API key, see [#191](https://github.com/mattpocock/sandcastle/issues/191).
+3. Edit `.isolator/.env` and fill in your default values for `ANTHROPIC_API_KEY`. If you want to use your Claude subscription instead of an API key, see [#191](https://github.com/armanthegreat/isolator/issues/191).
 
 ```bash
-cp .sandcastle/.env.example .sandcastle/.env
+cp .isolator/.env.example .isolator/.env
 ```
 
-4. Run the `.sandcastle/main.ts` (or `main.mts`) file with `npx tsx`
+4. Run the `.isolator/main.ts` (or `main.mts`) file with `npx tsx`
 
 ```bash
-npx tsx .sandcastle/main.ts
+npx tsx .isolator/main.ts
 ```
 
 ```typescript
 // 3. Run the agent via the JS API
-import { run, claudeCode } from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { run, claudeCode } from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 await run({
   agent: claudeCode("claude-opus-4-7"),
   sandbox: docker(), // or podman(), vercel(), or your own provider
-  promptFile: ".sandcastle/prompt.md",
+  promptFile: ".isolator/prompt.md",
 });
 ```
 
 ## Sandbox Providers
 
-Sandcastle uses a `SandboxProvider` to create isolated environments. The `sandbox` option on `run()` and `createSandbox()` accepts any provider. A no-sandbox option is also available for `interactive()` and `wt.interactive()`. Built-in providers:
+Isolator uses a `SandboxProvider` to create isolated environments. The `sandbox` option on `run()` and `createSandbox()` accepts any provider. A no-sandbox option is also available for `interactive()` and `wt.interactive()`. Built-in providers:
 
-| Provider   | Import path                                | Type       | Accepted by                                   |
-| ---------- | ------------------------------------------ | ---------- | --------------------------------------------- |
-| Docker     | `@ai-hero/sandcastle/sandboxes/docker`     | Bind-mount | `run()`, `createSandbox()`, `interactive()`   |
-| Podman     | `@ai-hero/sandcastle/sandboxes/podman`     | Bind-mount | `run()`, `createSandbox()`, `interactive()`   |
-| Vercel     | `@ai-hero/sandcastle/sandboxes/vercel`     | Isolated   | `run()`, `createSandbox()`, `interactive()`   |
-| No-sandbox | `@ai-hero/sandcastle/sandboxes/no-sandbox` | None       | `interactive()`, `wt.interactive()` (default) |
+| Provider   | Import path                     | Type       | Accepted by                                   |
+| ---------- | ------------------------------- | ---------- | --------------------------------------------- |
+| Docker     | `isolator/sandboxes/docker`     | Bind-mount | `run()`, `createSandbox()`, `interactive()`   |
+| Podman     | `isolator/sandboxes/podman`     | Bind-mount | `run()`, `createSandbox()`, `interactive()`   |
+| Vercel     | `isolator/sandboxes/vercel`     | Isolated   | `run()`, `createSandbox()`, `interactive()`   |
+| No-sandbox | `isolator/sandboxes/no-sandbox` | None       | `interactive()`, `wt.interactive()` (default) |
 
 Worktree methods (`wt.run()`, `wt.interactive()`, `wt.createSandbox()`) accept the same providers as their top-level counterparts. `wt.interactive()` defaults to `noSandbox()` when no sandbox is specified.
 
 ```typescript
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
-import { podman } from "@ai-hero/sandcastle/sandboxes/podman";
-import { vercel } from "@ai-hero/sandcastle/sandboxes/vercel";
-import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
+import { docker } from "isolator/sandboxes/docker";
+import { podman } from "isolator/sandboxes/podman";
+import { vercel } from "isolator/sandboxes/vercel";
+import { noSandbox } from "isolator/sandboxes/no-sandbox";
 
 // Docker, Podman, and Vercel are interchangeable in run() and createSandbox():
 await run({
@@ -102,16 +102,16 @@ You can also [create your own provider](#custom-sandbox-providers) using `create
 
 ## API
 
-Sandcastle exports a programmatic `run()` function for use in scripts, CI pipelines, or custom tooling. The examples below use `docker()`, but any `SandboxProvider` works in its place.
+Isolator exports a programmatic `run()` function for use in scripts, CI pipelines, or custom tooling. The examples below use `docker()`, but any `SandboxProvider` works in its place.
 
 ```typescript
-import { run, claudeCode } from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { run, claudeCode } from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 const result = await run({
   agent: claudeCode("claude-opus-4-7"),
   sandbox: docker(),
-  promptFile: ".sandcastle/prompt.md",
+  promptFile: ".isolator/prompt.md",
 });
 
 console.log(result.iterations.length); // number of iterations executed
@@ -123,8 +123,8 @@ console.log(result.branch); // target branch name
 ### All options
 
 ```typescript
-import { run, claudeCode } from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { run, claudeCode } from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 const result = await run({
   // Agent provider — required. Pass a model string to claudeCode().
@@ -134,7 +134,7 @@ const result = await run({
   // Sandbox provider — required. Any SandboxProvider works (docker, podman, vercel, or custom).
   // Provider-specific config (like imageName, mounts) lives inside the provider factory call.
   sandbox: docker({
-    imageName: "sandcastle:local",
+    imageName: "isolator:local",
     // Optional: override the UID/GID used for --user flag (defaults to host UID/GID).
     // Must match the UID baked into the image. Pre-flight check catches mismatches.
     // containerUid: 1000,
@@ -156,7 +156,7 @@ const result = await run({
   }),
 
   // Host repo directory — replaces process.cwd() as the anchor for
-  // .sandcastle/ artifacts (worktrees, logs, env, patches) and git operations.
+  // .isolator/ artifacts (worktrees, logs, env, patches) and git operations.
   // Relative paths resolve against process.cwd(). Defaults to process.cwd().
   cwd: "../other-repo",
 
@@ -166,7 +166,7 @@ const result = await run({
 
   // Prompt source — provide one of these, not both.
   // Note: promptFile resolves against process.cwd(), NOT cwd.
-  promptFile: ".sandcastle/prompt.md", // path to a prompt file
+  promptFile: ".isolator/prompt.md", // path to a prompt file
   // prompt: "Fix issue #42 in this repo", // OR an inline prompt string
 
   // Values substituted for {{KEY}} placeholders in the prompt.
@@ -201,10 +201,10 @@ const result = await run({
     copyToWorktreeMs: 120_000, // default: 60_000
   },
 
-  // How to record progress. Default: write to a file under .sandcastle/logs/
+  // How to record progress. Default: write to a file under .isolator/logs/
   logging: {
     type: "file",
-    path: ".sandcastle/logs/my-run.log",
+    path: ".isolator/logs/my-run.log",
     // Optional: forward the agent's output stream to your own observability system.
     // Fires for each text chunk and tool call the agent produces. Errors thrown
     // by the callback are swallowed so a broken forwarder cannot kill the run.
@@ -243,8 +243,8 @@ Use `run()` instead when you only need a single one-shot invocation — it handl
 #### Basic single-run usage
 
 ```typescript
-import { createSandbox, claudeCode } from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { createSandbox, claudeCode } from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 await using sandbox = await createSandbox({
   branch: "agent/fix-42",
@@ -262,8 +262,8 @@ console.log(result.commits); // [{ sha: "abc123" }]
 #### Multi-run implement-then-review
 
 ```typescript
-import { createSandbox, claudeCode } from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { createSandbox, claudeCode } from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 await using sandbox = await createSandbox({
   branch: "agent/fix-42",
@@ -274,7 +274,7 @@ await using sandbox = await createSandbox({
 // Step 1: implement
 const implResult = await sandbox.run({
   agent: claudeCode("claude-opus-4-7"),
-  promptFile: ".sandcastle/implement.md",
+  promptFile: ".isolator/implement.md",
   maxIterations: 5,
 });
 
@@ -367,7 +367,7 @@ Only `branch` and `merge-to-head` strategies are accepted; `head` is a compile-t
 Pass `cwd` to target a repo other than `process.cwd()`. Relative paths resolve against `process.cwd()`; absolute paths pass through. A `CwdError` is thrown if the path does not exist or is not a directory.
 
 ```typescript
-import { createWorktree } from "@ai-hero/sandcastle";
+import { createWorktree } from "isolator";
 
 await using wt = await createWorktree({
   branchStrategy: { type: "branch", branch: "agent/fix-42" },
@@ -387,14 +387,14 @@ await wt.interactive({
 // Run an AFK agent in the worktree (sandbox is required)
 const result = await wt.run({
   agent: claudeCode("claude-opus-4-7"),
-  sandbox: docker({ imageName: "sandcastle:myrepo" }),
+  sandbox: docker({ imageName: "isolator:myrepo" }),
   prompt: "Fix issue #42.",
   maxIterations: 3,
 });
 console.log(result.commits); // commits made during the run
 
 // Create a long-lived sandbox from the worktree
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { docker } from "isolator/sandboxes/docker";
 
 await using sandbox = await wt.createSandbox({
   sandbox: docker(),
@@ -486,10 +486,10 @@ await sandbox.close();
 
 ## How it works
 
-Sandcastle uses a **branch strategy** configured on the sandbox provider to control how the agent's changes relate to branches. There are three strategies:
+Isolator uses a **branch strategy** configured on the sandbox provider to control how the agent's changes relate to branches. There are three strategies:
 
 - **Head** (`{ type: "head" }`) — The agent writes directly to the host working directory. No worktree, no branch indirection. This is the default for bind-mount providers like `docker()`.
-- **Merge-to-head** (`{ type: "merge-to-head" }`) — Sandcastle creates a temporary branch in a git worktree. The agent works on the temp branch, and changes are merged back to HEAD when done. The temp branch is cleaned up after merge.
+- **Merge-to-head** (`{ type: "merge-to-head" }`) — Isolator creates a temporary branch in a git worktree. The agent works on the temp branch, and changes are merged back to HEAD when done. The temp branch is cleaned up after merge.
 - **Branch** (`{ type: "branch", branch: "foo" }`) — Commits land on an explicitly named branch in a git worktree.
 
 For bind-mount providers (like Docker), the worktree directory is bind-mounted into the container — the agent writes directly to the host filesystem through the mount, so no sync is needed.
@@ -498,7 +498,7 @@ From your point of view, you just configure `branchStrategy: { type: 'branch', b
 
 ## Prompts
 
-Sandcastle uses a flexible prompt system. You write the prompt, and the engine executes it — no opinions about workflow, task management, or context sources are imposed.
+Isolator uses a flexible prompt system. You write the prompt, and the engine executes it — no opinions about workflow, task management, or context sources are imposed.
 
 ### Prompt resolution
 
@@ -513,7 +513,7 @@ You must provide exactly one of:
 
 The substitution and expansion features below apply **only** to prompts sourced from `promptFile`.
 
-> **Convention**: `sandcastle init` scaffolds `.sandcastle/prompt.md` and all templates explicitly reference it via `promptFile: ".sandcastle/prompt.md"`. This is a convention, not an automatic fallback — Sandcastle does not read `.sandcastle/prompt.md` unless you pass it as `promptFile`.
+> **Convention**: `isolator init` scaffolds `.isolator/prompt.md` and all templates explicitly reference it via `promptFile: ".isolator/prompt.md"`. This is a convention, not an automatic fallback — Isolator does not read `.isolator/prompt.md` unless you pass it as `promptFile`.
 
 ### Dynamic context with `` !`command` ``
 
@@ -524,7 +524,7 @@ Commands run **inside the sandbox** after `sandbox.onSandboxReady` hooks complet
 ```markdown
 # Open issues
 
-!`gh issue list --state open --label Sandcastle --json number,title,body,comments,labels --limit 20`
+!`gh issue list --state open --label Isolator --json number,title,body,comments,labels --limit 20`
 
 # Recent commits
 
@@ -538,7 +538,7 @@ If any command exits with a non-zero code, the run fails immediately with an err
 Use `{{KEY}}` placeholders in your prompt to inject values from the `promptArgs` option. This is useful for reusing the same prompt file across multiple runs with different parameters.
 
 ```typescript
-import { run } from "@ai-hero/sandcastle";
+import { run } from "isolator";
 
 await run({
   promptFile: "./my-prompt.md",
@@ -564,7 +564,7 @@ A `{{KEY}}` placeholder with no matching prompt argument is an error. Unused pro
 
 ### Built-in prompt arguments
 
-Sandcastle automatically injects two built-in prompt arguments into every prompt:
+Isolator automatically injects two built-in prompt arguments into every prompt:
 
 | Placeholder         | Value                                                             |
 | ------------------- | ----------------------------------------------------------------- |
@@ -604,11 +604,11 @@ Tell the agent to output your chosen string(s) in the prompt, and the orchestrat
 
 ### Structured output
 
-Use `Output.object()` to extract a typed, schema-validated JSON payload from the agent's stdout. The agent emits its answer inside an XML tag you specify, and Sandcastle parses, validates, and returns it on `result.output`. See [ADR 0010](docs/adr/0010-structured-output.md) for design rationale.
+Use `Output.object()` to extract a typed, schema-validated JSON payload from the agent's stdout. The agent emits its answer inside an XML tag you specify, and Isolator parses, validates, and returns it on `result.output`. See [ADR 0010](docs/adr/0010-structured-output.md) for design rationale.
 
 ```ts
-import { run, Output, claudeCode } from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { run, Output, claudeCode } from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 import { z } from "zod";
 
 const result = await run({
@@ -632,7 +632,7 @@ console.log(result.output.score); // typed as number
 
 ### Templates
 
-`sandcastle init` prompts you to choose a sandbox provider (Docker or Podman), a backlog manager (GitHub Issues or Beads), and a template, which scaffolds a ready-to-use prompt and `main.mts` suited to a specific workflow. If your project's `package.json` has `"type": "module"`, the file will be named `main.ts` instead. Five templates are available:
+`isolator init` prompts you to choose a sandbox provider (Docker or Podman), a backlog manager (GitHub Issues or Beads), and a template, which scaffolds a ready-to-use prompt and `main.mts` suited to a specific workflow. If your project's `package.json` has `"type": "module"`, the file will be named `main.ts` instead. Five templates are available:
 
 | Template                       | Description                                                               |
 | ------------------------------ | ------------------------------------------------------------------------- |
@@ -642,74 +642,74 @@ console.log(result.output.score); // typed as number
 | `parallel-planner`             | Plans parallelizable issues, executes on separate branches, then merges   |
 | `parallel-planner-with-review` | Plans parallelizable issues, executes with per-branch review, then merges |
 
-Select a template during `sandcastle init` when prompted, or re-run init in a fresh repo to try a different one.
+Select a template during `isolator init` when prompted, or re-run init in a fresh repo to try a different one.
 
 ## CLI commands
 
-### `sandcastle init`
+### `isolator init`
 
-Scaffolds the `.sandcastle/` config directory and builds the container image. This is the first command you run in a new repo. You choose a sandbox provider (Docker or Podman) during init — selecting Podman writes a `Containerfile` instead of `Dockerfile` and uses `sandcastle podman build-image` for the build step.
+Scaffolds the `.isolator/` config directory and builds the container image. This is the first command you run in a new repo. You choose a sandbox provider (Docker or Podman) during init — selecting Podman writes a `Containerfile` instead of `Dockerfile` and uses `isolator podman build-image` for the build step.
 
-| Option         | Required | Default                      | Description                                                          |
-| -------------- | -------- | ---------------------------- | -------------------------------------------------------------------- |
-| `--image-name` | No       | `sandcastle:<repo-dir-name>` | Docker image name                                                    |
-| `--agent`      | No       | Interactive prompt           | Agent to use (`claude-code`, `pi`, `codex`, `opencode`)              |
-| `--model`      | No       | Agent's default model        | Model to use (e.g. `claude-sonnet-4-6`). Defaults to agent's default |
-| `--template`   | No       | Interactive prompt           | Template to scaffold (e.g. `blank`, `simple-loop`)                   |
+| Option         | Required | Default                    | Description                                                          |
+| -------------- | -------- | -------------------------- | -------------------------------------------------------------------- |
+| `--image-name` | No       | `isolator:<repo-dir-name>` | Docker image name                                                    |
+| `--agent`      | No       | Interactive prompt         | Agent to use (`claude-code`, `pi`, `codex`, `opencode`)              |
+| `--model`      | No       | Agent's default model      | Model to use (e.g. `claude-sonnet-4-6`). Defaults to agent's default |
+| `--template`   | No       | Interactive prompt         | Template to scaffold (e.g. `blank`, `simple-loop`)                   |
 
 Creates the following files:
 
 ```
-.sandcastle/
+.isolator/
 ├── Dockerfile      # Sandbox environment (customize as needed)
 ├── prompt.md       # Agent instructions
 ├── .env.example    # Token placeholders
 └── .gitignore      # Ignores .env, logs/
 ```
 
-Errors if `.sandcastle/` already exists to prevent overwriting customizations.
+Errors if `.isolator/` already exists to prevent overwriting customizations.
 
-### `sandcastle docker build-image`
+### `isolator docker build-image`
 
-Rebuilds the Docker image from an existing `.sandcastle/` directory. Use this after modifying the Dockerfile. On Linux/macOS, the build automatically passes `--build-arg AGENT_UID=$(id -u)` and `AGENT_GID=$(id -g)` so the image's `agent` user matches the host UID — this prevents permission errors on image-built files without runtime chown.
+Rebuilds the Docker image from an existing `.isolator/` directory. Use this after modifying the Dockerfile. On Linux/macOS, the build automatically passes `--build-arg AGENT_UID=$(id -u)` and `AGENT_GID=$(id -g)` so the image's `agent` user matches the host UID — this prevents permission errors on image-built files without runtime chown.
 
-| Option         | Required | Default                      | Description                                                                       |
-| -------------- | -------- | ---------------------------- | --------------------------------------------------------------------------------- |
-| `--image-name` | No       | `sandcastle:<repo-dir-name>` | Docker image name                                                                 |
-| `--dockerfile` | No       | —                            | Path to a custom Dockerfile (build context will be the current working directory) |
+| Option         | Required | Default                    | Description                                                                       |
+| -------------- | -------- | -------------------------- | --------------------------------------------------------------------------------- |
+| `--image-name` | No       | `isolator:<repo-dir-name>` | Docker image name                                                                 |
+| `--dockerfile` | No       | —                          | Path to a custom Dockerfile (build context will be the current working directory) |
 
-### `sandcastle docker remove-image`
+### `isolator docker remove-image`
 
 Removes the Docker image.
 
-| Option         | Required | Default                      | Description       |
-| -------------- | -------- | ---------------------------- | ----------------- |
-| `--image-name` | No       | `sandcastle:<repo-dir-name>` | Docker image name |
+| Option         | Required | Default                    | Description       |
+| -------------- | -------- | -------------------------- | ----------------- |
+| `--image-name` | No       | `isolator:<repo-dir-name>` | Docker image name |
 
-### `sandcastle podman build-image`
+### `isolator podman build-image`
 
-Builds the Podman image from an existing `.sandcastle/` directory. Use this after modifying the Containerfile.
+Builds the Podman image from an existing `.isolator/` directory. Use this after modifying the Containerfile.
 
-| Option            | Required | Default                      | Description                                                                          |
-| ----------------- | -------- | ---------------------------- | ------------------------------------------------------------------------------------ |
-| `--image-name`    | No       | `sandcastle:<repo-dir-name>` | Podman image name                                                                    |
-| `--containerfile` | No       | —                            | Path to a custom Containerfile (build context will be the current working directory) |
+| Option            | Required | Default                    | Description                                                                          |
+| ----------------- | -------- | -------------------------- | ------------------------------------------------------------------------------------ |
+| `--image-name`    | No       | `isolator:<repo-dir-name>` | Podman image name                                                                    |
+| `--containerfile` | No       | —                          | Path to a custom Containerfile (build context will be the current working directory) |
 
-### `sandcastle podman remove-image`
+### `isolator podman remove-image`
 
 Removes the Podman image.
 
-| Option         | Required | Default                      | Description       |
-| -------------- | -------- | ---------------------------- | ----------------- |
-| `--image-name` | No       | `sandcastle:<repo-dir-name>` | Podman image name |
+| Option         | Required | Default                    | Description       |
+| -------------- | -------- | -------------------------- | ----------------- |
+| `--image-name` | No       | `isolator:<repo-dir-name>` | Podman image name |
 
 ### `RunOptions`
 
 | Option               | Type               | Default                       | Description                                                                                                                                                     |
 | -------------------- | ------------------ | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `agent`              | AgentProvider      | —                             | **Required.** Agent provider (e.g. `claudeCode("claude-opus-4-7")`, `pi("claude-sonnet-4-6")`, `codex("gpt-5.4-mini")`, `opencode("opencode/big-pickle")`)      |
-| `sandbox`            | SandboxProvider    | —                             | **Required.** Sandbox provider (e.g. `docker()`, `podman()`, `docker({ imageName: "sandcastle:local" })`)                                                       |
-| `cwd`                | string             | `process.cwd()`               | Host repo directory — anchor for `.sandcastle/` artifacts and git operations. Relative paths resolve against `process.cwd()`.                                   |
+| `sandbox`            | SandboxProvider    | —                             | **Required.** Sandbox provider (e.g. `docker()`, `podman()`, `docker({ imageName: "isolator:local" })`)                                                         |
+| `cwd`                | string             | `process.cwd()`               | Host repo directory — anchor for `.isolator/` artifacts and git operations. Relative paths resolve against `process.cwd()`.                                     |
 | `prompt`             | string             | —                             | Inline prompt (mutually exclusive with `promptFile`)                                                                                                            |
 | `promptFile`         | string             | —                             | Path to prompt file (mutually exclusive with `prompt`). Resolves against `process.cwd()`, **not** `cwd`.                                                        |
 | `maxIterations`      | number             | `1`                           | Maximum iterations to run                                                                                                                                       |
@@ -757,7 +757,7 @@ Removes the Podman image.
 
 ### Session capture
 
-After each Claude Code iteration, Sandcastle automatically captures the agent's session JSONL from the sandbox to the host at `~/.claude/projects/<encoded-path>/sessions/<session-id>.jsonl`. The `cwd` fields inside each JSONL entry are rewritten to match the host repo root, so `claude --resume` works natively.
+After each Claude Code iteration, Isolator automatically captures the agent's session JSONL from the sandbox to the host at `~/.claude/projects/<encoded-path>/sessions/<session-id>.jsonl`. The `cwd` fields inside each JSONL entry are rewritten to match the host repo root, so `claude --resume` works natively.
 
 Session capture is enabled by default for `claudeCode()` and can be opted out via `captureSessions: false`. Non-Claude agent providers never attempt capture. Capture failure fails the run.
 
@@ -774,7 +774,7 @@ const result = await run({
 });
 ```
 
-Before the sandbox starts, Sandcastle validates that the session file exists on the host and transfers it into the sandbox with `cwd` fields rewritten to match the sandbox-side path. The Claude Code agent receives `--resume <id>` on its print command for iteration 1.
+Before the sandbox starts, Isolator validates that the session file exists on the host and transfers it into the sandbox with `cwd` fields rewritten to match the sandbox-side path. The Claude Code agent receives `--resume <id>` on its print command for iteration 1.
 
 Constraints:
 
@@ -812,7 +812,7 @@ agent: codex("gpt-5.4", { effort: "high" });
 
 ### Provider `env`
 
-Both **agent providers** and **sandbox providers** accept an optional `env: Record<string, string>` in their options. These environment variables are merged with the `.sandcastle/.env` resolver output at launch time:
+Both **agent providers** and **sandbox providers** accept an optional `env: Record<string, string>` in their options. These environment variables are merged with the `.isolator/.env` resolver output at launch time:
 
 ```typescript
 await run({
@@ -828,17 +828,17 @@ await run({
 
 **Merge rules:**
 
-- Provider env (agent + sandbox) overrides `.sandcastle/.env` resolver output for shared keys
+- Provider env (agent + sandbox) overrides `.isolator/.env` resolver output for shared keys
 - Agent provider env and sandbox provider env **must not overlap** — if they share any key, `run()` throws an error
 - When `env` is not provided, it defaults to `{}`
 
-Environment variables are also resolved automatically from `.sandcastle/.env` and `process.env` — no need to pass them to the API. The required variables depend on the **agent provider** (see `sandcastle init` output for details).
+Environment variables are also resolved automatically from `.isolator/.env` and `process.env` — no need to pass them to the API. The required variables depend on the **agent provider** (see `isolator init` output for details).
 
 ## Custom Sandbox Providers
 
-Sandcastle ships with built-in providers for Docker, Podman, and Vercel, but you can create your own. A sandbox provider tells Sandcastle how to execute commands in an isolated environment. There are two kinds:
+Isolator ships with built-in providers for Docker, Podman, and Vercel, but you can create your own. A sandbox provider tells Isolator how to execute commands in an isolated environment. There are two kinds:
 
-- **Bind-mount** — the sandbox can mount a host directory. Sandcastle creates a worktree on the host and the provider mounts it in. No file sync needed. Use this for Docker, Podman, or any local container runtime.
+- **Bind-mount** — the sandbox can mount a host directory. Isolator creates a worktree on the host and the provider mounts it in. No file sync needed. Use this for Docker, Podman, or any local container runtime.
 - **Isolated** — the sandbox has its own filesystem (e.g. a cloud VM). The provider handles syncing code in and out via `copyIn` and `copyFileOut`. Use this when the sandbox cannot access the host filesystem.
 
 ### The sandbox handle contract
@@ -876,7 +876,7 @@ import {
   type BindMountCreateOptions,
   type BindMountSandboxHandle,
   type ExecResult,
-} from "@ai-hero/sandcastle";
+} from "isolator";
 import { execFile, spawn } from "node:child_process";
 import { copyFile as fsCopyFile, mkdir as fsMkdir } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -911,7 +911,7 @@ const localProcess = () =>
               const rl = createInterface({ input: proc.stdout! });
               rl.on("line", (line) => {
                 stdoutChunks.push(line);
-                onLine(line); // forward each line to Sandcastle
+                onLine(line); // forward each line to Isolator
               });
 
               proc.stderr!.on("data", (chunk: Buffer) => {
@@ -976,7 +976,7 @@ import {
   createIsolatedSandboxProvider,
   type IsolatedSandboxHandle,
   type ExecResult,
-} from "@ai-hero/sandcastle";
+} from "isolator";
 import { execFile, spawn } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -1080,7 +1080,7 @@ A branch strategy controls where the agent's commits land. Configure it when con
 | Strategy        | Behavior                                                                 | Bind-mount | Isolated  |
 | --------------- | ------------------------------------------------------------------------ | ---------- | --------- |
 | `head`          | Agent writes directly to the host working directory. No worktree created | Default    | N/A       |
-| `merge-to-head` | Sandcastle creates a temp branch, merges back to HEAD when done          | Supported  | Default   |
+| `merge-to-head` | Isolator creates a temp branch, merges back to HEAD when done            | Supported  | Default   |
 | `branch`        | Commits land on an explicit named branch you provide                     | Supported  | Supported |
 
 **When to use each:**
@@ -1092,8 +1092,8 @@ A branch strategy controls where the agent's commits land. Configure it when con
 Branch strategy is now configured on `run()`, not on the provider:
 
 ```typescript
-import { run, claudeCode } from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { run, claudeCode } from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 // head — direct write, bind-mount only (default for bind-mount providers)
 await run({
@@ -1121,7 +1121,7 @@ await run({
 Pass your custom provider via the `sandbox` option — it works the same as the built-in `docker()` provider:
 
 ```typescript
-import { run, claudeCode } from "@ai-hero/sandcastle";
+import { run, claudeCode } from "isolator";
 
 const result = await run({
   agent: claudeCode("claude-opus-4-7"),
@@ -1141,13 +1141,13 @@ For real-world examples, see:
 
 ## Configuration
 
-### Config directory (`.sandcastle/`)
+### Config directory (`.isolator/`)
 
-All per-repo sandbox configuration lives in `.sandcastle/`. Run `sandcastle init` to create it.
+All per-repo sandbox configuration lives in `.isolator/`. Run `isolator init` to create it.
 
 ### Custom Dockerfile
 
-The `.sandcastle/Dockerfile` controls the sandbox environment. The default template installs:
+The `.isolator/Dockerfile` controls the sandbox environment. The default template installs:
 
 - **Node.js 22** (base image)
 - **git**, **curl**, **jq** (system dependencies)
@@ -1201,11 +1201,12 @@ hooks: {
 ## Development
 
 ```bash
-npm install
-npm run build    # Build with tsgo
-npm test         # Run tests with vitest
-npm run typecheck # Type-check
+pnpm install
+pnpm test          # Run tests with vitest
+pnpm run typecheck # Type-check with tsgo
 ```
+
+TypeScript is run natively by Node 24 — no build step, no `tsx`.
 
 ## License
 

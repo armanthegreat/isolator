@@ -12,12 +12,12 @@
 // issues are picked up after each round of merges.
 //
 // Usage:
-//   npx tsx .sandcastle/main.mts
+//   npx tsx .isolator/main.mts
 // Or add to package.json:
-//   "scripts": { "sandcastle": "npx tsx .sandcastle/main.mts" }
+//   "scripts": { "isolator": "npx tsx .isolator/main.mts" }
 
-import * as sandcastle from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import * as isolator from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -54,7 +54,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   //
   // It outputs a <plan> JSON block — we parse that to drive Phase 2.
   // -------------------------------------------------------------------------
-  const plan = await sandcastle.run({
+  const plan = await isolator.run({
     hooks,
     sandbox: docker(),
     name: "planner",
@@ -62,8 +62,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     // not write code.
     maxIterations: 1,
     // Opus for planning: dependency analysis benefits from deeper reasoning.
-    agent: sandcastle.claudeCode("claude-opus-4-7"),
-    promptFile: "./.sandcastle/plan-prompt.md",
+    agent: isolator.claudeCode("claude-opus-4-7"),
+    promptFile: "./.isolator/plan-prompt.md",
   });
 
   // Extract the <plan>…</plan> block from the agent's stdout.
@@ -103,7 +103,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   // -------------------------------------------------------------------------
   const settled = await Promise.allSettled(
     issues.map((issue) =>
-      sandcastle.run({
+      isolator.run({
         hooks,
         copyToWorktree,
         // Each agent starts on its own branch via branchStrategy on run().
@@ -113,8 +113,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         // Give each agent plenty of room to implement and iterate on tests.
         maxIterations: 100,
         // Sonnet for execution: fast and capable enough for typical issue work.
-        agent: sandcastle.claudeCode("claude-sonnet-4-6"),
-        promptFile: "./.sandcastle/implement-prompt.md",
+        agent: isolator.claudeCode("claude-sonnet-4-6"),
+        promptFile: "./.isolator/implement-prompt.md",
         // Prompt arguments substitute {{TASK_ID}}, {{ISSUE_TITLE}},
         // and {{BRANCH}} placeholders in implement-prompt.md before the
         // agent sees the prompt.
@@ -145,7 +145,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         entry,
       ): entry is {
         outcome: PromiseFulfilledResult<
-          Awaited<ReturnType<typeof sandcastle.run>>
+          Awaited<ReturnType<typeof isolator.run>>
         >;
         issue: (typeof issues)[number];
       } =>
@@ -178,14 +178,14 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   // The {{BRANCHES}} and {{ISSUES}} prompt arguments are lists that the agent
   // uses to know which branches to merge and which issues to close.
   // -------------------------------------------------------------------------
-  await sandcastle.run({
+  await isolator.run({
     hooks,
     sandbox: docker(),
     name: "merger",
     maxIterations: 1,
     // Sonnet is sufficient for merge conflict resolution.
-    agent: sandcastle.claudeCode("claude-sonnet-4-6"),
-    promptFile: "./.sandcastle/merge-prompt.md",
+    agent: isolator.claudeCode("claude-sonnet-4-6"),
+    promptFile: "./.isolator/merge-prompt.md",
     promptArgs: {
       // A markdown list of branch names, one per line.
       BRANCHES: completedBranches.map((b) => `- ${b}`).join("\n"),

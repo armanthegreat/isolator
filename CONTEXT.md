@@ -1,4 +1,4 @@
-# Sandcastle
+# Isolator
 
 A TypeScript toolkit that orchestrates AI coding agents inside isolated sandbox environments, managing the lifecycle of sandboxes, branches, prompts, and iterations.
 
@@ -6,7 +6,7 @@ A TypeScript toolkit that orchestrates AI coding agents inside isolated sandbox 
 
 ### Core concepts
 
-**Sandcastle**:
+**Isolator**:
 The TypeScript CLI tool that orchestrates an **agent** inside a **sandbox**.
 _Avoid_: "the tool", "the CLI", "RALPH"
 
@@ -15,7 +15,7 @@ The isolation boundary around the **agent** -- a container, VM, or similar envir
 _Avoid_: "container" (too specific), "Docker sandbox" (ambiguous with Claude's built-in feature), "workspace"
 
 **Host**:
-The developer's machine where Sandcastle runs and the real git repo lives.
+The developer's machine where Isolator runs and the real git repo lives.
 _Avoid_: "local" (ambiguous -- the sandbox also has a local filesystem)
 
 **Agent**:
@@ -51,7 +51,7 @@ A **branch strategy** where the **agent** works directly in the **host** working
 _Avoid_: `"none"` (old name), "direct"
 
 **Merge-to-head (branch strategy)**:
-A **branch strategy** where Sandcastle creates a temporary branch, the agent works on it, and changes are merged back to HEAD.
+A **branch strategy** where Isolator creates a temporary branch, the agent works on it, and changes are merged back to HEAD.
 _Avoid_: `"temp-branch"` (old name), "auto-branch"
 
 **Branch (branch strategy)**:
@@ -59,7 +59,7 @@ A **branch strategy** where commits land on an explicitly named branch provided 
 _Avoid_: "named-branch"
 
 **Worktree**:
-A git worktree created in `.sandcastle/worktrees/` on the **host**, used by the **merge-to-head** and **branch** strategies. For **bind-mount sandbox providers**, the **worktree** is mounted into the **sandbox**. For **isolated sandbox providers**, the **worktree** is the sync source/destination -- commits from the **sandbox** are pulled back into the **worktree**. Created explicitly via `createWorktree()` or implicitly by `run()`/`interactive()` when using a non-**head** **branch strategy**.
+A git worktree created in `.isolator/worktrees/` on the **host**, used by the **merge-to-head** and **branch** strategies. For **bind-mount sandbox providers**, the **worktree** is mounted into the **sandbox**. For **isolated sandbox providers**, the **worktree** is the sync source/destination -- commits from the **sandbox** are pulled back into the **worktree**. Created explicitly via `createWorktree()` or implicitly by `run()`/`interactive()` when using a non-**head** **branch strategy**.
 _Avoid_: "workspace", "branch copy", "clone"
 
 **Source branch**:
@@ -67,7 +67,7 @@ The branch the **agent** works on -- determined by the **branch strategy**.
 _Avoid_: "working branch", "agent branch"
 
 **Target branch**:
-The **host**'s active branch at `run()` time -- the branch Sandcastle merges into when using **merge-to-head**.
+The **host**'s active branch at `run()` time -- the branch Isolator merges into when using **merge-to-head**.
 _Avoid_: "base branch", "destination branch", "merge target"
 
 ### Agents
@@ -95,7 +95,7 @@ The `<promise>COMPLETE</promise>` marker in the **agent**'s output indicating al
 _Avoid_: "done flag", "exit signal", conflating with **structured output**
 
 **Structured output**:
-A schema-validated JSON payload emitted by the **agent** inside a caller-specified XML tag and returned to the caller of `run()`. Configured via `output: Output.object({ tag, schema })`. Orthogonal to the **completion signal** -- a run can use either, both, or neither. The caller owns the prompt-side instruction telling the agent to emit the tag; Sandcastle does not inject it, and `run()` errors early if the resolved prompt does not contain the configured tag.
+A schema-validated JSON payload emitted by the **agent** inside a caller-specified XML tag and returned to the caller of `run()`. Configured via `output: Output.object({ tag, schema })`. Orthogonal to the **completion signal** -- a run can use either, both, or neither. The caller owns the prompt-side instruction telling the agent to emit the tag; Isolator does not inject it, and `run()` errors early if the resolved prompt does not contain the configured tag.
 _Avoid_: "output payload", "result", "JSON output"
 
 **Output schema**:
@@ -133,7 +133,7 @@ A `` !`command` `` marker in a **prompt** that evaluates a shell command inside 
 _Avoid_: "command" (overloaded), "inline command", "prompt command"
 
 **Built-in prompt argument**:
-A **prompt argument** that Sandcastle injects automatically -- not provided by the user via `promptArgs`.
+A **prompt argument** that Isolator injects automatically -- not provided by the user via `promptArgs`.
 _Avoid_: "system variable", "auto argument", "default prompt argument"
 
 ### Hooks
@@ -153,8 +153,8 @@ The CLI command that scaffolds the **config directory** in a **host** repo.
 _Avoid_: "create", "bootstrap", "new"
 
 **Config directory**:
-The `.sandcastle/` directory in a **host** repo containing sandbox configuration.
-_Avoid_: ".sandcastle folder", "sandcastle dir"
+The `.isolator/` directory in a **host** repo containing sandbox configuration.
+_Avoid_: ".isolator folder", "isolator dir"
 
 **Backlog manager**:
 A pluggable source of **tasks** for the **agent**, selected during **init** (e.g. GitHub Issues, Beads).
@@ -171,11 +171,11 @@ _Avoid_: "template expansion", "interpolation"
 ### Infrastructure
 
 **Build-image**:
-A provider-namespaced CLI command that rebuilds the image (e.g. `sandcastle docker build-image`).
+A provider-namespaced CLI command that rebuilds the image (e.g. `isolator docker build-image`).
 _Avoid_: "setup-sandbox" (old name)
 
 **Remove-image**:
-A provider-namespaced CLI command that removes the image (e.g. `sandcastle docker remove-image`).
+A provider-namespaced CLI command that removes the image (e.g. `isolator docker remove-image`).
 _Avoid_: "cleanup-sandbox" (old name)
 
 **Agent session**:
@@ -185,15 +185,15 @@ _Avoid_: "chat history", "transcript"
 ### Display
 
 **Log-to-file mode**:
-The display mode where Sandcastle writes iteration progress and agent output to a **run log**.
+The display mode where Isolator writes iteration progress and agent output to a **run log**.
 _Avoid_: "file mode", "file logging", "quiet mode"
 
 **Run log**:
-A log file written to `.sandcastle/logs/` during a run session.
+A log file written to `.isolator/logs/` during a run session.
 _Avoid_: "log file" (too generic), "output file"
 
 **Terminal mode**:
-The display mode where Sandcastle renders an interactive UI in the terminal with spinners and styled status messages.
+The display mode where Isolator renders an interactive UI in the terminal with spinners and styled status messages.
 _Avoid_: "stdout mode", "interactive mode", "CLI mode" (ambiguous with the CLI itself)
 
 **Agent stream event**:
@@ -202,7 +202,7 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 
 ## Relationships
 
-- **Sandcastle** orchestrates an **agent** inside a **sandbox**
+- **Isolator** orchestrates an **agent** inside a **sandbox**
 - A **sandbox** is created by a **sandbox provider**, which is injected into `run()` via the `sandbox` option -- this is required, there is no default
 - A **sandbox provider** is a **bind-mount sandbox provider**, **isolated sandbox provider**, or **no-sandbox provider**
 - Each **sandbox provider** has a **branch strategy** configured at construction time
@@ -212,7 +212,7 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 - A **no-sandbox provider** supports all three **branch strategies** (default: **head**). It is only accepted by `interactive()`, not `run()` -- enforced at the type level. The **agent provider** does not receive `dangerouslySkipPermissions: true`
 - `interactive()` accepts all three **sandbox provider** types; `run()` accepts only **bind-mount** and **isolated**
 - `createSandbox()` does not accept a **no-sandbox provider**
-- **Sandbox providers** are imported from subpaths (e.g. `sandcastle/sandboxes/docker`) -- the main `sandcastle` entry point does not re-export any provider
+- **Sandbox providers** are imported from subpaths (e.g. `isolator/sandboxes/docker`) -- the main `isolator` entry point does not re-export any provider
 - **Host hooks** run on the **host**; **sandbox hooks** run inside the **sandbox**. Hooks are grouped under `host` and `sandbox` in the `hooks` option
 - Lifecycle ordering: `copyToWorktree` -> `host.onWorktreeReady` (sequential) -> sandbox created -> `host.onSandboxReady` + `sandbox.onSandboxReady` (parallel)
 - Each **iteration** may produce one or more commits; iterations repeat until the **completion signal** fires or the max count is reached
@@ -220,24 +220,24 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 - **Init** performs **template argument substitution** on Dockerfiles and scaffold `.md` files, replacing **template arguments** with values derived from the user's choices
 - Each **backlog manager** declares a Dockerfile snippet (installed via **template argument substitution**) and command placeholders for **prompt** templates
 - The **agent**'s Dockerfile template contains **template arguments** (e.g. `{{BACKLOG_MANAGER_TOOLS}}`) that **init** fills in based on the selected **backlog manager**
-- **Build-image** and **remove-image** are namespaced under their provider in the CLI (e.g. `sandcastle docker build-image`)
+- **Build-image** and **remove-image** are namespaced under their provider in the CLI (e.g. `isolator docker build-image`)
 - The **agent provider** is selected via the `agent` field in config or `--agent` CLI flag
-- At launch, Sandcastle resolves env vars from **config directory** `.env` and `process.env`, then passes the full env map into the **sandbox**
+- At launch, Isolator resolves env vars from **config directory** `.env` and `process.env`, then passes the full env map into the **sandbox**
 - **Inline prompts** bypass **prompt argument substitution** and **prompt expansion** entirely -- they are passed to the **agent** as-is. `promptArgs` cannot be combined with an **inline prompt**; doing so raises an error
 - **Prompt argument substitution** and **prompt expansion** only apply to **prompt templates** (prompts sourced via `promptFile`)
 - **Prompt argument substitution** runs once after prompt resolution, replacing `{{KEY}}` placeholders with values from **prompt arguments** -- this happens on the **host**, before the **sandbox** exists
 - **Prompt expansion** runs before each **iteration**, evaluating all **shell expressions** inside the **sandbox**
 - **Prompt argument substitution** runs before **prompt expansion**, so **prompt arguments** can inject values into **shell expressions**
-- A `{{KEY}}` placeholder in a **prompt template** with no matching **prompt argument** is an error in `run()` (AFK mode); in `interactive()`, Sandcastle prompts the user to fill in missing values
+- A `{{KEY}}` placeholder in a **prompt template** with no matching **prompt argument** is an error in `run()` (AFK mode); in `interactive()`, Isolator prompts the user to fill in missing values
 - Unused **prompt arguments** produce a warning
 - A **prompt** may contain zero or more **prompt arguments** and/or **shell expressions**; each substitution step is skipped if there are no matches
-- Sandcastle injects **built-in prompt arguments** `{{SOURCE_BRANCH}}` and `{{TARGET_BRANCH}}` automatically
+- Isolator injects **built-in prompt arguments** `{{SOURCE_BRANCH}}` and `{{TARGET_BRANCH}}` automatically
 - If a user passes `SOURCE_BRANCH` or `TARGET_BRANCH` in `promptArgs`, **prompt argument substitution** fails with an error -- **built-in prompt arguments** cannot be overridden
 - **Target branch** defaults to the **host**'s current branch at `run()` time (via `git rev-parse --abbrev-ref HEAD`)
-- **Source branch** is either the explicitly provided `branch` option or a Sandcastle-generated temp branch
+- **Source branch** is either the explicitly provided `branch` option or a Isolator-generated temp branch
 - **Log-to-file mode** is the default for programmatic use via `run()`; **terminal mode** is used when passing `logging: { type: 'stdout' }` to `run()`
-- In **log-to-file mode**, Sandcastle writes a **run log** to `.sandcastle/logs/` and prints a `tail -f` command to the console
-- In **terminal mode**, Sandcastle renders spinners, styled status messages, and summaries directly in the terminal
+- In **log-to-file mode**, Isolator writes a **run log** to `.isolator/logs/` and prints a `tail -f` command to the console
+- In **terminal mode**, Isolator renders spinners, styled status messages, and summaries directly in the terminal
 - In **log-to-file mode**, callers may pass an `onAgentStreamEvent` callback on the `logging` option to receive each **agent stream event** alongside the file log -- intended for forwarding the **agent**'s output to an external observability system. The callback is sync, fire-and-forget, and errors thrown by the callback are swallowed so a broken forwarder cannot kill the run
 
 ## Example dialogue
@@ -246,11 +246,11 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 
 > **Dev:** "What if I want to use Podman instead of Docker?"
 
-> **Domain expert:** "Import a different **sandbox provider**. Instead of `import { docker } from 'sandcastle/sandboxes/docker'`, use `import { podman } from 'sandcastle/sandboxes/podman'`. Both are **bind-mount sandbox providers** -- the **branch strategy** controls how changes land. By default it's **head**, so the agent writes directly to your working directory."
+> **Domain expert:** "Import a different **sandbox provider**. Instead of `import { docker } from 'isolator/sandboxes/docker'`, use `import { podman } from 'isolator/sandboxes/podman'`. Both are **bind-mount sandbox providers** -- the **branch strategy** controls how changes land. By default it's **head**, so the agent writes directly to your working directory."
 
 > **Dev:** "What if I want safety -- a temp branch that merges back?"
 
-> **Domain expert:** "Pass `branchStrategy: { type: 'merge-to-head' }` when constructing the provider. Sandcastle creates a **worktree**, the agent works on a temp branch, and it gets merged back to HEAD when done."
+> **Domain expert:** "Pass `branchStrategy: { type: 'merge-to-head' }` when constructing the provider. Isolator creates a **worktree**, the agent works on a temp branch, and it gets merged back to HEAD when done."
 
 > **Dev:** "What about a cloud VM that can't bind-mount my local filesystem?"
 
@@ -258,13 +258,13 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 
 > **Dev:** "Can I write my own provider?"
 
-> **Domain expert:** "Yes. Implement a function that returns a `SandboxProvider`. If your environment can mount a host directory, use the bind-mount factory -- Sandcastle handles worktrees and commit extraction for you. If not, use the isolated factory and implement `copyIn`, `copyFileOut`, and `extractCommits`. The **branch strategy** is configured on the provider at construction time."
+> **Domain expert:** "Yes. Implement a function that returns a `SandboxProvider`. If your environment can mount a host directory, use the bind-mount factory -- Isolator handles worktrees and commit extraction for you. If not, use the isolated factory and implement `copyIn`, `copyFileOut`, and `extractCommits`. The **branch strategy** is configured on the provider at construction time."
 
 ### No-sandbox provider
 
 > **Dev:** "I want to use `interactive()` without Docker -- I'm sitting right here, I can approve permissions myself."
 
-> **Domain expert:** "Use the **no-sandbox provider**: `noSandbox()`. The **agent** runs directly on the **host** with no container. Sandcastle won't pass `--dangerously-skip-permissions` to the **agent provider**, so Claude Code's normal permission prompts stay active."
+> **Domain expert:** "Use the **no-sandbox provider**: `noSandbox()`. The **agent** runs directly on the **host** with no container. Isolator won't pass `--dangerously-skip-permissions` to the **agent provider**, so Claude Code's normal permission prompts stay active."
 
 > **Dev:** "Can I still use a worktree with `noSandbox()`?"
 
@@ -290,7 +290,7 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 
 > **Dev:** "My prompt has `{{ISSUE_NUMBER}}` but I forgot to pass it in `promptArgs`. What happens in interactive mode?"
 
-> **Domain expert:** "Sandcastle scans the **prompt**, finds the missing `{{ISSUE_NUMBER}}`, and prompts you at the terminal to type it in. In `run()` it would just error -- there's nobody to ask."
+> **Domain expert:** "Isolator scans the **prompt**, finds the missing `{{ISSUE_NUMBER}}`, and prompts you at the terminal to type it in. In `run()` it would just error -- there's nobody to ask."
 
 ### Agent providers & environment
 
@@ -298,15 +298,15 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 
 > **Domain expert:** "Create a new **agent provider**. It declares which env vars it needs -- maybe `OPEN_CODE_API_KEY` instead of `ANTHROPIC_API_KEY`. And it provides its own Dockerfile template that installs the right binary."
 
-> **Dev:** "How does Sandcastle know which **agent provider** to use?"
+> **Dev:** "How does Isolator know which **agent provider** to use?"
 
-> **Domain expert:** "The `agent` option passed to `run()`, or the `--agent` CLI flag. Sandcastle loads env vars and passes them straight through to the **sandbox** -- the **agent** handles missing credentials on its own."
+> **Domain expert:** "The `agent` option passed to `run()`, or the `--agent` CLI flag. Isolator loads env vars and passes them straight through to the **sandbox** -- the **agent** handles missing credentials on its own."
 
 ### Built-in prompt arguments
 
 > **Dev:** "My reviewer agent diffs against `main`, but I'm working from a feature branch. The diff is huge."
 
-> **Domain expert:** "Use the **built-in prompt argument** `{{TARGET_BRANCH}}` in your **prompt**. It resolves to the **host**'s active branch at `run()` time -- so if you kick off Sandcastle from `feature/auth`, the reviewer diffs against `feature/auth`, not `main`."
+> **Domain expert:** "Use the **built-in prompt argument** `{{TARGET_BRANCH}}` in your **prompt**. It resolves to the **host**'s active branch at `run()` time -- so if you kick off Isolator from `feature/auth`, the reviewer diffs against `feature/auth`, not `main`."
 
 > **Dev:** "Can I override `{{TARGET_BRANCH}}` in `promptArgs`?"
 
@@ -320,12 +320,12 @@ _Avoid_: "log event" (the log file contains more than just agent output), "displ
 - **"Container"** vs **"Sandbox"** -- "Container" is a Docker/Podman primitive; **sandbox** is our abstraction. Use **sandbox** for the concept, "container" only for provider implementation details.
 - **"Local"** vs **"Host"** -- Use **host** for the developer's machine. "Local" is ambiguous (the **worktree** is also on a local filesystem).
 - **"Run"** -- Can mean the JS `run()` function or a single **iteration**. Use **iteration** for one agent invocation; "run session" for a call to `run()`.
-- **"Token"** vs **"Env var"** -- Sandcastle handles all environment variables generically. Use "env var" for the general concept; "token" only for auth credential values.
-- **"Command"** -- Overloaded: hook commands, shell commands, CLI commands, **shell expressions**. Use **shell expression** for `` !`...` `` syntax; "hook" for lifecycle hooks; "CLI command" for `sandcastle init`, etc.
+- **"Token"** vs **"Env var"** -- Isolator handles all environment variables generically. Use "env var" for the general concept; "token" only for auth credential values.
+- **"Command"** -- Overloaded: hook commands, shell commands, CLI commands, **shell expressions**. Use **shell expression** for `` !`...` `` syntax; "hook" for lifecycle hooks; "CLI command" for `isolator init`, etc.
 - **"Variable"** vs **"Argument"** -- **Prompt arguments** are host-side values substituted into `{{KEY}}` placeholders. Env vars are passed into the **sandbox** environment. Don't call prompt arguments "variables".
 - **"File mode"** vs **"Log-to-file mode"** -- Use **log-to-file mode**. "File mode" is ambiguous. Similarly, avoid "stdout mode" for **terminal mode**.
-- **"Base branch"** vs **"Target branch"** -- Use **target branch**. "Base branch" is ambiguous in Sandcastle's context.
+- **"Base branch"** vs **"Target branch"** -- Use **target branch**. "Base branch" is ambiguous in Isolator's context.
 - **"Built-in"** vs **"Default"** prompt arguments -- "Default" implies overridable. **Built-in prompt arguments** cannot be overridden. Use "built-in".
 - **"No sandbox"** vs **"local"** vs **"none"** -- The provider type is `NoSandboxProvider`, the factory is `noSandbox()`, the tag is `"none"`. Say **no-sandbox provider** in prose.
 - **"Workspace"** -- Retired term. Use **worktree** for the git worktree on the **host**, and **sandbox** for the isolation boundary. Don't say "workspace" in this project.
-- **"Interactive mode"** -- Could mean `interactive()` (Sandcastle's function) or Claude Code's TUI. In this project, it means Sandcastle's `interactive()`. Don't confuse with **terminal mode**.
+- **"Interactive mode"** -- Could mean `interactive()` (Isolator's function) or Claude Code's TUI. In this project, it means Isolator's `interactive()`. Don't confuse with **terminal mode**.

@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { testBindMount } from "./test-bind-mount.js";
+import { testBindMount } from "./test-bind-mount.ts";
 
 describe("testBindMount()", () => {
   it("returns a SandboxProvider with tag 'bind-mount' and name 'test-bind-mount'", () => {

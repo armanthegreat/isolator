@@ -3,13 +3,13 @@ import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { interactive, type InteractiveOptions } from "./interactive.js";
+import { interactive, type InteractiveOptions } from "./interactive.ts";
 import {
   createBindMountSandboxProvider,
   type BindMountSandboxHandle,
   type InteractiveExecOptions,
-} from "./SandboxProvider.js";
-import { claudeCode, pi, codex, opencode } from "./AgentProvider.js";
+} from "./SandboxProvider.ts";
+import { claudeCode, pi, codex, opencode } from "./AgentProvider.ts";
 
 // --- buildInteractiveArgs prompt tests ---
 
@@ -83,7 +83,7 @@ describe("interactive()", () => {
 
   beforeEach(() => {
     originalCwd = process.cwd();
-    hostDir = mkdtempSync(join(tmpdir(), "sandcastle-interactive-test-"));
+    hostDir = mkdtempSync(join(tmpdir(), "isolator-interactive-test-"));
     // Initialize a git repo
     execSync("git init", { cwd: hostDir, stdio: "ignore" });
     execSync('git config user.email "test@test.com"', {
@@ -241,7 +241,7 @@ describe("interactive()", () => {
 
   it("throws when provider is isolated (not bind-mount)", async () => {
     const { createIsolatedSandboxProvider } =
-      await import("./SandboxProvider.js");
+      await import("./SandboxProvider.ts");
     const isolatedProvider = createIsolatedSandboxProvider({
       name: "test-isolated",
       create: async () => ({
@@ -695,7 +695,7 @@ describe("interactive()", () => {
 
   it("uses cwd as host repo directory for worktree placement", async () => {
     // Create a second git repo in a separate temp dir
-    const otherRepo = mkdtempSync(join(tmpdir(), "sandcastle-cwd-test-"));
+    const otherRepo = mkdtempSync(join(tmpdir(), "isolator-cwd-test-"));
     execSync("git init", { cwd: otherRepo, stdio: "ignore" });
     execSync('git config user.email "test@test.com"', {
       cwd: otherRepo,
@@ -724,7 +724,7 @@ describe("interactive()", () => {
     });
 
     expect(result.exitCode).toBe(0);
-    // The worktree should be under the other repo's .sandcastle/worktrees/ dir
+    // The worktree should be under the other repo's .isolator/worktrees/ dir
     expect(worktreeCwd).toBeDefined();
     expect(worktreeCwd!.startsWith(otherRepo)).toBe(true);
   });

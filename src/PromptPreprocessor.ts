@@ -1,12 +1,12 @@
 import { Effect } from "effect";
-import { Display } from "./Display.js";
+import { Display } from "./Display.ts";
 import {
   PromptError,
   PromptExpansionTimeoutError,
   withTimeout,
-} from "./errors.js";
-import type { ExecError } from "./errors.js";
-import type { SandboxService } from "./SandboxFactory.js";
+} from "./errors.ts";
+import type { ExecError } from "./errors.ts";
+import type { SandboxService } from "./SandboxFactory.ts";
 
 const PROMPT_EXPANSION_TIMEOUT_MS = 30_000;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { noSandbox } from "./no-sandbox.js";
+import { noSandbox } from "./no-sandbox.ts";
 
 describe("noSandbox", () => {
   it("returns a provider with tag 'none'", () => {
@@ -83,11 +83,11 @@ describe("noSandbox", () => {
       const provider = noSandbox();
       const handle = await provider.create({
         worktreePath: process.cwd(),
-        env: { MY_TEST_VAR: "sandcastle_test_value" },
+        env: { MY_TEST_VAR: "isolator_test_value" },
       });
 
       const result = await handle.exec("echo $MY_TEST_VAR");
-      expect(result.stdout.trim()).toBe("sandcastle_test_value");
+      expect(result.stdout.trim()).toBe("isolator_test_value");
     });
 
     it("interactiveExec spawns process and returns exit code", async () => {

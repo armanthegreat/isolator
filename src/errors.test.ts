@@ -10,7 +10,7 @@ import {
   PromptError,
   SyncError,
   WorktreeError,
-} from "./errors.js";
+} from "./errors.ts";
 
 describe("tagged errors", () => {
   it("ExecError has correct _tag and extends Error", () => {

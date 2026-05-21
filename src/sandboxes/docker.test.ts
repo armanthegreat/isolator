@@ -18,8 +18,8 @@ import { execFile } from "node:child_process";
 import { writeFileSync, mkdtempSync, unlinkSync, rmdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { docker } from "./docker.js";
-import type { BindMountSandboxHandle } from "../SandboxProvider.js";
+import { docker } from "./docker.ts";
+import type { BindMountSandboxHandle } from "../SandboxProvider.ts";
 
 const mockExecFile = vi.mocked(execFile);
 
@@ -246,7 +246,7 @@ describe("docker()", () => {
         env: {},
       }),
     ).rejects.toThrow(
-      "Image 'my-app:latest' not found locally. Build it first with 'sandcastle docker build-image'.",
+      "Image 'my-app:latest' not found locally. Build it first with 'isolator docker build-image'.",
     );
   });
 
@@ -339,7 +339,7 @@ describe("docker()", () => {
     const cpArgs = cpCall![1] as string[];
     expect(cpArgs[0]).toBe("cp");
     expect(cpArgs[1]).toBe("/host/file.txt");
-    expect(cpArgs[2]).toMatch(/^sandcastle-.*:\/sandbox\/file\.txt$/);
+    expect(cpArgs[2]).toMatch(/^isolator-.*:\/sandbox\/file\.txt$/);
 
     await handle.close();
   });
@@ -374,7 +374,7 @@ describe("docker()", () => {
     expect(cpCall).toBeDefined();
     const cpArgs = cpCall![1] as string[];
     expect(cpArgs[0]).toBe("cp");
-    expect(cpArgs[1]).toMatch(/^sandcastle-.*:\/sandbox\/output\.txt$/);
+    expect(cpArgs[1]).toMatch(/^isolator-.*:\/sandbox\/output\.txt$/);
     expect(cpArgs[2]).toBe("/host/output.txt");
 
     await handle.close();

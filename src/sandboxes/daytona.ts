@@ -12,7 +12,7 @@ import {
   type ExecResult,
   type IsolatedSandboxHandle,
   type IsolatedSandboxProvider,
-} from "../SandboxProvider.js";
+} from "../SandboxProvider.ts";
 
 import type {
   Daytona as DaytonaClient,
@@ -61,7 +61,7 @@ export interface DaytonaOptions {
  *
  * @example
  * ```ts
- * import { daytona } from "@ai-hero/sandcastle/sandboxes/daytona";
+ * import { daytona } from "isolator/sandboxes/daytona";
  *
  * const provider = daytona({ apiKey: "dyt_my_key" });
  * ```
@@ -101,7 +101,7 @@ export const daytona = (options?: DaytonaOptions): IsolatedSandboxProvider =>
           const effectiveCommand = opts?.sudo ? `sudo ${command}` : command;
           if (opts?.onLine) {
             const onLine = opts.onLine;
-            const sessionId = `sandcastle-${crypto.randomUUID()}`;
+            const sessionId = `isolator-${crypto.randomUUID()}`;
             await sandbox.process.createSession(sessionId);
 
             try {

@@ -24,15 +24,15 @@ const commitFile = async (
   await execAsync(`git commit -m "${message}"`, { cwd: dir });
 };
 
-const cliPath = join(import.meta.dirname, "..", "dist", "main.js");
+const cliPath = join(import.meta.dirname, "main.ts");
 
 const runCli = (args: string, cwd: string) =>
   execAsync(`node ${cliPath} ${args}`, { cwd });
 
-describe("sandcastle CLI", () => {
+describe("isolator CLI", () => {
   it("shows help with --help flag", async () => {
     const { stdout } = await runCli("--help", process.cwd());
-    expect(stdout).toContain("sandcastle");
+    expect(stdout).toContain("isolator");
     expect(stdout).toContain("docker");
     expect(stdout).toContain("init");
     expect(stdout).not.toContain("run");
@@ -53,7 +53,7 @@ describe("sandcastle CLI", () => {
     expect(stdout).toContain("remove-image");
   });
 
-  it("docker build-image errors when .sandcastle/ is missing", async () => {
+  it("docker build-image errors when .isolator/ is missing", async () => {
     const hostDir = await mkdtemp(join(tmpdir(), "cli-host-"));
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial commit");
@@ -64,7 +64,7 @@ describe("sandcastle CLI", () => {
     } catch (err: unknown) {
       const { stdout, stderr } = err as { stdout: string; stderr: string };
       const output = stdout + stderr;
-      expect(output).toContain("No .sandcastle/ found");
+      expect(output).toContain("No .isolator/ found");
     }
   });
 
@@ -137,7 +137,7 @@ describe("sandcastle CLI", () => {
     expect(stdout).toContain("--image-name");
   });
 
-  it("podman build-image errors when .sandcastle/ is missing", async () => {
+  it("podman build-image errors when .isolator/ is missing", async () => {
     const hostDir = await mkdtemp(join(tmpdir(), "cli-host-"));
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial commit");
@@ -148,7 +148,7 @@ describe("sandcastle CLI", () => {
     } catch (err: unknown) {
       const { stdout, stderr } = err as { stdout: string; stderr: string };
       const output = stdout + stderr;
-      expect(output).toContain("No .sandcastle/ found");
+      expect(output).toContain("No .isolator/ found");
     }
   });
 
@@ -164,6 +164,25 @@ describe("sandcastle CLI", () => {
       const output = stdout + stderr;
       expect(output).toContain("nonexistent");
       expect(output).toContain("claude-code");
+    }
+  });
+
+  it("--help shows the pipeline command", async () => {
+    const { stdout } = await runCli("--help", process.cwd());
+    expect(stdout).toContain("pipeline");
+  });
+
+  it("pipeline with an unknown name lists the available pipelines", async () => {
+    const hostDir = await mkdtemp(join(tmpdir(), "cli-host-"));
+
+    try {
+      await runCli("pipeline nonexistent demo", hostDir);
+      expect.fail("Expected command to fail");
+    } catch (err: unknown) {
+      const { stdout, stderr } = err as { stdout: string; stderr: string };
+      const output = stdout + stderr;
+      expect(output).toContain("nonexistent");
+      expect(output).toContain("echo");
     }
   });
 });

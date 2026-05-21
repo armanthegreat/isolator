@@ -1,14 +1,14 @@
 import { Effect, Layer, Ref } from "effect";
 import { describe, expect, it } from "vitest";
-import { type DisplayEntry, SilentDisplay } from "./Display.js";
+import { type DisplayEntry, SilentDisplay } from "./Display.ts";
 import {
   substitutePromptArgs,
   validateNoArgsWithInlinePrompt,
   validateNoBuiltInArgOverride,
   findMissingPromptArgKeys,
   BUILT_IN_PROMPT_ARG_KEYS,
-} from "./PromptArgumentSubstitution.js";
-import { PromptError } from "./errors.js";
+} from "./PromptArgumentSubstitution.ts";
+import { PromptError } from "./errors.ts";
 
 describe("PromptArgumentSubstitution", () => {
   const setup = () => {
@@ -20,7 +20,7 @@ describe("PromptArgumentSubstitution", () => {
   const run = (
     prompt: string,
     args: Record<string, string | number | boolean>,
-    layer: Layer.Layer<import("./Display.js").Display>,
+    layer: Layer.Layer<import("./Display.ts").Display>,
   ) =>
     Effect.runPromise(
       substitutePromptArgs(prompt, args).pipe(Effect.provide(layer)),
@@ -29,7 +29,7 @@ describe("PromptArgumentSubstitution", () => {
   const runFail = (
     prompt: string,
     args: Record<string, string | number | boolean>,
-    layer: Layer.Layer<import("./Display.js").Display>,
+    layer: Layer.Layer<import("./Display.ts").Display>,
   ) =>
     Effect.runPromise(
       substitutePromptArgs(prompt, args).pipe(

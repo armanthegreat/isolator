@@ -9,22 +9,22 @@ import {
   WorktreeError,
   withTimeout,
   type DockerError,
-} from "./errors.js";
+} from "./errors.ts";
 import type {
   SandboxProvider,
   BindMountSandboxProvider,
   BindMountSandboxHandle,
   IsolatedSandboxProvider,
   IsolatedSandboxHandle,
-} from "./SandboxProvider.js";
+} from "./SandboxProvider.ts";
 import {
   type Sandbox,
   type MountEntry,
   makeSandboxLayerFromHandle,
   SANDBOX_REPO_DIR,
-} from "./SandboxFactory.js";
-import { syncIn } from "./syncIn.js";
-import { normalizeMounts } from "./mountUtils.js";
+} from "./SandboxFactory.ts";
+import { syncIn } from "./syncIn.ts";
+import { normalizeMounts } from "./mountUtils.ts";
 
 export interface StartSandboxBindMountOptions {
   provider: BindMountSandboxProvider;

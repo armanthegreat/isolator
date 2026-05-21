@@ -2,22 +2,22 @@ import { NodeContext, NodeFileSystem } from "@effect/platform-node";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Effect, Layer } from "effect";
-import { hostSessionStore } from "./SessionStore.js";
-import type { AgentProvider } from "./AgentProvider.js";
-import { ClackDisplay, Display, FileDisplay } from "./Display.js";
-import { preprocessPrompt } from "./PromptPreprocessor.js";
-import { resolvePrompt } from "./PromptResolver.js";
+import { hostSessionStore } from "./SessionStore.ts";
+import type { AgentProvider } from "./AgentProvider.ts";
+import { ClackDisplay, Display, FileDisplay } from "./Display.ts";
+import { preprocessPrompt } from "./PromptPreprocessor.ts";
+import { resolvePrompt } from "./PromptResolver.ts";
 import {
   SandboxFactory,
   makeSandboxLayerFromHandle,
   resolveGitMounts,
   SANDBOX_REPO_DIR,
-} from "./SandboxFactory.js";
+} from "./SandboxFactory.ts";
 import {
   withSandboxLifecycle,
   runHostHooks,
   type SandboxHooks,
-} from "./SandboxLifecycle.js";
+} from "./SandboxLifecycle.ts";
 import type {
   AnySandboxProvider,
   SandboxProvider,
@@ -26,35 +26,35 @@ import type {
   BindMountSandboxHandle,
   IsolatedSandboxHandle,
   NoSandboxHandle,
-} from "./SandboxProvider.js";
-import type { CloseResult, Sandbox } from "./createSandbox.js";
-import { createSandboxFromWorktree } from "./createSandbox.js";
-import type { InteractiveResult } from "./interactive.js";
-import { buildLogFilename, printFileDisplayStartup } from "./run.js";
-import type { LoggingOption } from "./run.js";
-import { orchestrate, type IterationResult } from "./Orchestrator.js";
-import { defaultSessionPathsLayer } from "./SessionPaths.js";
+} from "./SandboxProvider.ts";
+import type { CloseResult, Sandbox } from "./createSandbox.ts";
+import { createSandboxFromWorktree } from "./createSandbox.ts";
+import type { InteractiveResult } from "./interactive.ts";
+import { buildLogFilename, printFileDisplayStartup } from "./run.ts";
+import type { LoggingOption } from "./run.ts";
+import { orchestrate, type IterationResult } from "./Orchestrator.ts";
+import { defaultSessionPathsLayer } from "./SessionPaths.ts";
 import {
   callbackAgentStreamEmitterLayer,
   noopAgentStreamEmitterLayer,
-} from "./AgentStreamEmitter.js";
-import { resolveEnv } from "./EnvResolver.js";
-import { mergeProviderEnv } from "./mergeProviderEnv.js";
-import { startSandbox } from "./startSandbox.js";
-import { syncOut } from "./syncOut.js";
-import * as WorktreeManager from "./WorktreeManager.js";
-import { copyToWorktree } from "./CopyToWorktree.js";
-import { resolveCwd } from "./resolveCwd.js";
+} from "./AgentStreamEmitter.ts";
+import { resolveEnv } from "./EnvResolver.ts";
+import { mergeProviderEnv } from "./mergeProviderEnv.ts";
+import { startSandbox } from "./startSandbox.ts";
+import { syncOut } from "./syncOut.ts";
+import * as WorktreeManager from "./WorktreeManager.ts";
+import { copyToWorktree } from "./CopyToWorktree.ts";
+import { resolveCwd } from "./resolveCwd.ts";
 import {
   type PromptArgs,
   substitutePromptArgs,
   validateNoArgsWithInlinePrompt,
   validateNoBuiltInArgOverride,
   BUILT_IN_PROMPT_ARG_KEYS,
-} from "./PromptArgumentSubstitution.js";
-import { noSandbox } from "./sandboxes/no-sandbox.js";
-import { raceAbortSignal } from "./raceAbortSignal.js";
-import type { Timeouts } from "./run.js";
+} from "./PromptArgumentSubstitution.ts";
+import { noSandbox } from "./sandboxes/no-sandbox.ts";
+import { raceAbortSignal } from "./raceAbortSignal.ts";
+import type { Timeouts } from "./run.ts";
 
 /** Branch strategies valid for createWorktree — head is excluded. */
 export type WorktreeBranchStrategy =
@@ -66,7 +66,7 @@ export interface CreateWorktreeOptions {
   readonly branchStrategy: WorktreeBranchStrategy;
   /**
    * Host repo directory. Replaces `process.cwd()` as the anchor for
-   * `.sandcastle/worktrees/`, `.sandcastle/.env`, and git operations.
+   * `.isolator/worktrees/`, `.isolator/.env`, and git operations.
    *
    * - Relative paths are resolved against `process.cwd()`.
    * - Absolute paths are used as-is.
@@ -108,7 +108,7 @@ export interface WorktreeInteractiveOptions {
    * - The worktree is preserved on disk after abort.
    * - The `Worktree` handle remains usable for subsequent operations.
    * - The rejected promise surfaces `signal.reason` via
-   *   `signal.throwIfAborted()` — no Sandcastle-specific wrapping.
+   *   `signal.throwIfAborted()` — no Isolator-specific wrapping.
    */
   readonly signal?: AbortSignal;
 }
@@ -168,7 +168,7 @@ export interface WorktreeRunResult {
 }
 
 export interface WorktreeCreateSandboxOptions {
-  /** Sandbox provider (e.g. docker({ imageName: "sandcastle:myrepo" })). */
+  /** Sandbox provider (e.g. docker({ imageName: "isolator:myrepo" })). */
   readonly sandbox: SandboxProvider;
   /** Lifecycle hooks grouped by execution location (host or sandbox). */
   readonly hooks?: SandboxHooks;
@@ -180,7 +180,7 @@ export interface WorktreeCreateSandboxOptions {
   readonly _test?: {
     readonly buildSandboxLayer?: (
       sandboxDir: string,
-    ) => import("effect").Layer.Layer<import("./SandboxFactory.js").Sandbox>;
+    ) => import("effect").Layer.Layer<import("./SandboxFactory.ts").Sandbox>;
   };
 }
 
@@ -231,7 +231,12 @@ export const createWorktree = async (
       baseBranch,
     });
     if (options.copyToWorktree && options.copyToWorktree.length > 0) {
-      yield* copyToWorktree(options.copyToWorktree, hostRepoDir, info.path, options.timeouts?.copyToWorktreeMs);
+      yield* copyToWorktree(
+        options.copyToWorktree,
+        hostRepoDir,
+        info.path,
+        options.timeouts?.copyToWorktreeMs,
+      );
     }
     // Run host.onWorktreeReady hooks after copyToWorktree, before sandbox creation
     if (options.hooks?.host?.onWorktreeReady?.length) {
@@ -321,7 +326,7 @@ export const createWorktree = async (
       }
 
       // Display intro
-      yield* d.intro(opts.name ?? "sandcastle interactive");
+      yield* d.intro(opts.name ?? "isolator interactive");
       yield* d.summary("Interactive Session", {
         Agent: opts.name ?? provider.name,
         Sandbox: resolvedSandbox.name,
@@ -565,7 +570,7 @@ export const createWorktree = async (
         type: "file",
         path: join(
           hostRepoDir,
-          ".sandcastle",
+          ".isolator",
           "logs",
           buildLogFilename(worktreeInfo.branch, undefined, opts.name),
         ),
@@ -617,7 +622,7 @@ export const createWorktree = async (
       // 7. Run orchestration
       const result = yield* Effect.gen(function* () {
         const display = yield* Display;
-        yield* display.intro(opts.name ?? "sandcastle");
+        yield* display.intro(opts.name ?? "isolator");
 
         return yield* orchestrate({
           hostRepoDir,

@@ -1,7 +1,7 @@
 import { Effect, Ref } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Display, SilentDisplay } from "./Display.js";
-import type { DisplayEntry } from "./Display.js";
+import { Display, SilentDisplay } from "./Display.ts";
+import type { DisplayEntry } from "./Display.ts";
 import {
   AgentError,
   AgentIdleTimeoutError,
@@ -14,8 +14,8 @@ import {
   PromptError,
   SyncError,
   WorktreeError,
-} from "./errors.js";
-import { formatErrorMessage, withFriendlyErrors } from "./ErrorHandler.js";
+} from "./errors.ts";
+import { formatErrorMessage, withFriendlyErrors } from "./ErrorHandler.ts";
 
 // --- formatErrorMessage ---
 
@@ -82,11 +82,11 @@ describe("formatErrorMessage", () => {
   it("ConfigDirError passes through message (includes init hint)", () => {
     const msg = formatErrorMessage(
       new ConfigDirError({
-        message: "No .sandcastle/ found. Run `sandcastle init` first.",
+        message: "No .isolator/ found. Run `isolator init` first.",
       }),
     );
-    expect(msg).toContain("No .sandcastle/");
-    expect(msg).toContain("sandcastle init");
+    expect(msg).toContain("No .isolator/");
+    expect(msg).toContain("isolator init");
   });
 
   it("InitError passes through message", () => {
@@ -155,12 +155,12 @@ describe("withFriendlyErrors", () => {
       withFriendlyErrors(
         Effect.fail(
           new ConfigDirError({
-            message: "No .sandcastle/ found. Run `sandcastle init` first.",
+            message: "No .isolator/ found. Run `isolator init` first.",
           }),
         ),
       ),
     );
-    expect(statusOf(entries)!.message).toContain("No .sandcastle/");
+    expect(statusOf(entries)!.message).toContain("No .isolator/");
   });
 
   it("routes AgentIdleTimeoutError through Display with timeout seconds", async () => {

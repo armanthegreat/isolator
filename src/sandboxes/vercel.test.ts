@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { vercel } from "./vercel.js";
+import { vercel } from "./vercel.ts";
 
 describe("vercel()", () => {
   it("returns a SandboxProvider with tag 'isolated' and name 'vercel'", () => {

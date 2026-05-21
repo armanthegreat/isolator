@@ -3,12 +3,12 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { type DisplayEntry, SilentDisplay } from "./Display.js";
-import { preprocessPrompt } from "./PromptPreprocessor.js";
-import { substitutePromptArgs } from "./PromptArgumentSubstitution.js";
-import { Sandbox } from "./SandboxFactory.js";
-import { makeLocalSandboxLayer } from "./testSandbox.js";
-import { PromptError } from "./errors.js";
+import { type DisplayEntry, SilentDisplay } from "./Display.ts";
+import { preprocessPrompt } from "./PromptPreprocessor.ts";
+import { substitutePromptArgs } from "./PromptArgumentSubstitution.ts";
+import { Sandbox } from "./SandboxFactory.ts";
+import { makeLocalSandboxLayer } from "./testSandbox.ts";
+import { PromptError } from "./errors.ts";
 
 describe("PromptPreprocessor", () => {
   const setup = async () => {

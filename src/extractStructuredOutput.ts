@@ -3,7 +3,7 @@ import {
   type OutputDefinition,
   type OutputObjectDefinition,
   type OutputStringDefinition,
-} from "./Output.js";
+} from "./Output.ts";
 
 interface ExtractionContext {
   readonly commits: { sha: string }[];
@@ -73,7 +73,12 @@ const extractObject = async <T>(
   if (result.issues) {
     throw new StructuredOutputError(
       `Structured output tag <${definition.tag}> failed schema validation`,
-      { tag: definition.tag, rawMatched: raw, cause: result.issues, ...context },
+      {
+        tag: definition.tag,
+        rawMatched: raw,
+        cause: result.issues,
+        ...context,
+      },
     );
   }
 
@@ -109,10 +114,7 @@ const extractString = (
  * Find the content between the **last** `<tag>` and `</tag>` pair in text.
  * Returns `undefined` if the tag is not found.
  */
-const findLastTagContent = (
-  text: string,
-  tag: string,
-): string | undefined => {
+const findLastTagContent = (text: string, tag: string): string | undefined => {
   const openTag = `<${tag}>`;
   const closeTag = `</${tag}>`;
 
@@ -149,9 +151,7 @@ const findLastTagContent = (
  */
 const unwrapFences = (text: string): string => {
   // Match ```json ... ``` or ``` ... ``` (with optional language hint)
-  const fenceMatch = text.match(
-    /^```(?:json)?\s*\n([\s\S]*?)\n\s*```\s*$/,
-  );
+  const fenceMatch = text.match(/^```(?:json)?\s*\n([\s\S]*?)\n\s*```\s*$/);
   if (fenceMatch) {
     return fenceMatch[1]!.trim();
   }

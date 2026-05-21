@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { NodeContext, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
-import { cli } from "./cli.js";
-import { ClackDisplay } from "./Display.js";
-import { withFriendlyErrors } from "./ErrorHandler.js";
-import { setupTerminalCleanup } from "./terminalCleanup.js";
+import { cli } from "./cli.ts";
+import { ClackDisplay } from "./Display.ts";
+import { withFriendlyErrors } from "./ErrorHandler.ts";
+import { setupTerminalCleanup } from "./terminalCleanup.ts";
 
 // Restore terminal state on any exit.
 // @clack/prompts' spinner/taskLog set stdin to raw mode and hide the cursor.

@@ -1,6 +1,6 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import type { IsolatedSandboxHandle } from "./SandboxProvider.js";
+import type { IsolatedSandboxHandle } from "./SandboxProvider.ts";
 
 const execAsync = promisify(exec);
 

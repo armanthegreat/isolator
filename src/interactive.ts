@@ -2,34 +2,34 @@ import { NodeContext, NodeFileSystem } from "@effect/platform-node";
 import { join } from "node:path";
 import * as clack from "@clack/prompts";
 import { Effect } from "effect";
-import type { AgentProvider } from "./AgentProvider.js";
-import { ClackDisplay, Display } from "./Display.js";
-import { preprocessPrompt } from "./PromptPreprocessor.js";
-import { resolvePrompt } from "./PromptResolver.js";
+import type { AgentProvider } from "./AgentProvider.ts";
+import { ClackDisplay, Display } from "./Display.ts";
+import { preprocessPrompt } from "./PromptPreprocessor.ts";
+import { resolvePrompt } from "./PromptResolver.ts";
 import {
   makeSandboxLayerFromHandle,
   resolveGitMounts,
   SANDBOX_REPO_DIR,
-} from "./SandboxFactory.js";
+} from "./SandboxFactory.ts";
 import {
   withSandboxLifecycle,
   runHostHooks,
   type SandboxHooks,
-} from "./SandboxLifecycle.js";
+} from "./SandboxLifecycle.ts";
 import type {
   AnySandboxProvider,
   BranchStrategy,
   BindMountSandboxHandle,
   IsolatedSandboxHandle,
   NoSandboxHandle,
-} from "./SandboxProvider.js";
-import { resolveEnv } from "./EnvResolver.js";
-import { mergeProviderEnv } from "./mergeProviderEnv.js";
-import { copyToWorktree } from "./CopyToWorktree.js";
-import { startSandbox } from "./startSandbox.js";
-import { syncOut } from "./syncOut.js";
-import * as WorktreeManager from "./WorktreeManager.js";
-import { generateTempBranchName, getCurrentBranch } from "./WorktreeManager.js";
+} from "./SandboxProvider.ts";
+import { resolveEnv } from "./EnvResolver.ts";
+import { mergeProviderEnv } from "./mergeProviderEnv.ts";
+import { copyToWorktree } from "./CopyToWorktree.ts";
+import { startSandbox } from "./startSandbox.ts";
+import { syncOut } from "./syncOut.ts";
+import * as WorktreeManager from "./WorktreeManager.ts";
+import { generateTempBranchName, getCurrentBranch } from "./WorktreeManager.ts";
 import {
   type PromptArgs,
   substitutePromptArgs,
@@ -37,11 +37,11 @@ import {
   validateNoBuiltInArgOverride,
   findMissingPromptArgKeys,
   BUILT_IN_PROMPT_ARG_KEYS,
-} from "./PromptArgumentSubstitution.js";
-import { noSandbox } from "./sandboxes/no-sandbox.js";
-import { raceAbortSignal } from "./raceAbortSignal.js";
-import { resolveCwd } from "./resolveCwd.js";
-import type { Timeouts } from "./run.js";
+} from "./PromptArgumentSubstitution.ts";
+import { noSandbox } from "./sandboxes/no-sandbox.ts";
+import { raceAbortSignal } from "./raceAbortSignal.ts";
+import { resolveCwd } from "./resolveCwd.ts";
+import type { Timeouts } from "./run.ts";
 
 export interface InteractiveOptions {
   /** Agent provider to use (e.g. claudeCode("claude-opus-4-7")) */
@@ -80,7 +80,7 @@ export interface InteractiveOptions {
    *   immediately without doing any setup work.
    * - Aborting during an active session kills the agent subprocess.
    * - The rejected promise surfaces `signal.reason` via
-   *   `signal.throwIfAborted()` — no Sandcastle-specific wrapping.
+   *   `signal.throwIfAborted()` — no Isolator-specific wrapping.
    * - The worktree is preserved on disk after abort (error-path behavior).
    */
   readonly signal?: AbortSignal;
@@ -103,7 +103,7 @@ export interface InteractiveResult {
  * Launch an interactive agent session inside a sandbox.
  *
  * The user sees the agent's TUI directly. When the session ends,
- * Sandcastle collects commits and handles branch merging, just like run().
+ * Isolator collects commits and handles branch merging, just like run().
  *
  * Full prompt preprocessing pipeline: PromptResolver -> PromptArgumentSubstitution
  * -> PromptPreprocessor (shell expressions inside sandbox).
@@ -237,7 +237,7 @@ export const interactive = async (
     const lifecycleBranch = isHeadMode ? currentHostBranch : branch;
 
     // Display intro and summary
-    yield* d.intro(options.name ?? "sandcastle interactive");
+    yield* d.intro(options.name ?? "isolator interactive");
     yield* d.summary("Interactive Session", {
       Agent: options.name ?? provider.name,
       Sandbox: sandboxProvider.name,

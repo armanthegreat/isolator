@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { TextDeltaBuffer } from "./TextDeltaBuffer.js";
+import { TextDeltaBuffer } from "./TextDeltaBuffer.ts";
 
 describe("TextDeltaBuffer", () => {
   beforeEach(() => {

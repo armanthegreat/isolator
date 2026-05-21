@@ -6,9 +6,9 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
-import { testIsolated } from "./sandboxes/test-isolated.js";
-import { syncIn } from "./syncIn.js";
-import { syncOut } from "./syncOut.js";
+import { testIsolated } from "./sandboxes/test-isolated.ts";
+import { syncIn } from "./syncIn.ts";
+import { syncOut } from "./syncOut.ts";
 
 const execAsync = promisify(exec);
 
@@ -312,7 +312,7 @@ describe("syncOut", () => {
     }
   });
 
-  it("successful sync-out leaves no patch artifacts in .sandcastle/patches", async () => {
+  it("successful sync-out leaves no patch artifacts in .isolator/patches", async () => {
     const hostDir = await mkdtemp(join(tmpdir(), "host-"));
     await initRepo(hostDir);
     await commitFile(hostDir, "initial.txt", "initial", "initial commit");
@@ -339,7 +339,7 @@ describe("syncOut", () => {
       expect(log[0]).toContain("add new file");
 
       // Verify no patch artifacts remain
-      const patchesDir = join(hostDir, ".sandcastle", "patches");
+      const patchesDir = join(hostDir, ".isolator", "patches");
       expect(existsSync(patchesDir)).toBe(false);
     } finally {
       await handle.close();
@@ -380,7 +380,7 @@ describe("syncOut", () => {
       }
 
       // Verify patch artifacts are preserved
-      const patchesDir = join(hostDir, ".sandcastle", "patches");
+      const patchesDir = join(hostDir, ".isolator", "patches");
       expect(existsSync(patchesDir)).toBe(true);
 
       const timestampDirs = await readdir(patchesDir);
@@ -433,7 +433,7 @@ describe("syncOut", () => {
       }
 
       // Verify patch artifacts are preserved
-      const patchesDir = join(hostDir, ".sandcastle", "patches");
+      const patchesDir = join(hostDir, ".isolator", "patches");
       expect(existsSync(patchesDir)).toBe(true);
 
       const timestampDirs = await readdir(patchesDir);

@@ -6,15 +6,15 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
-import { claudeCode, pi } from "./AgentProvider.js";
-import { createSandbox, type CreateSandboxOptions } from "./createSandbox.js";
-import { Sandbox } from "./SandboxFactory.js";
+import { claudeCode, pi } from "./AgentProvider.ts";
+import { createSandbox, type CreateSandboxOptions } from "./createSandbox.ts";
+import { Sandbox } from "./SandboxFactory.ts";
 import {
   createBindMountSandboxProvider,
   createIsolatedSandboxProvider,
-} from "./SandboxProvider.js";
-import { testIsolated } from "./sandboxes/test-isolated.js";
-import { makeLocalSandboxLayer } from "./testSandbox.js";
+} from "./SandboxProvider.ts";
+import { testIsolated } from "./sandboxes/test-isolated.ts";
+import { makeLocalSandboxLayer } from "./testSandbox.ts";
 
 /** Dummy sandbox provider used to satisfy the required `sandbox` field in test mode. */
 const testSandbox = createBindMountSandboxProvider({
@@ -199,7 +199,7 @@ describe("createSandbox", () => {
 
     try {
       expect(sandbox.branch).toBe("test-branch");
-      expect(sandbox.worktreePath).toContain(".sandcastle/worktrees");
+      expect(sandbox.worktreePath).toContain(".isolator/worktrees");
       expect(existsSync(sandbox.worktreePath)).toBe(true);
     } finally {
       await sandbox.close();
@@ -781,7 +781,7 @@ describe("createSandbox", () => {
 
     try {
       expect(sandbox.branch).toBe("test-isolated-branch");
-      expect(sandbox.worktreePath).toContain(".sandcastle/worktrees");
+      expect(sandbox.worktreePath).toContain(".isolator/worktrees");
       expect(existsSync(sandbox.worktreePath)).toBe(true);
     } finally {
       await sandbox.close();

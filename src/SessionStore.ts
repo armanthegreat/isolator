@@ -11,7 +11,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
-import type { BindMountSandboxHandle } from "./SandboxProvider.js";
+import type { BindMountSandboxHandle } from "./SandboxProvider.ts";
 
 // ---------------------------------------------------------------------------
 // SessionStore interface
@@ -107,7 +107,7 @@ export const sandboxSessionStore = (
       const sandboxPath = posix.join(projectDir, `${id}.jsonl`);
       const tmpPath = join(
         tmpdir(),
-        `sandcastle-session-${id}-${Date.now()}.jsonl`,
+        `isolator-session-${id}-${Date.now()}.jsonl`,
       );
       await handle.copyFileOut(sandboxPath, tmpPath);
       try {
@@ -120,7 +120,7 @@ export const sandboxSessionStore = (
       const sandboxPath = posix.join(projectDir, `${id}.jsonl`);
       const tmpPath = join(
         tmpdir(),
-        `sandcastle-session-${id}-${Date.now()}.jsonl`,
+        `isolator-session-${id}-${Date.now()}.jsonl`,
       );
       await writeFile(tmpPath, content);
       try {

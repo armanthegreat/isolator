@@ -5,22 +5,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { createWorktree } from "./createWorktree.js";
+import { createWorktree } from "./createWorktree.ts";
 import type {
   CreateWorktreeOptions,
   WorktreeRunOptions,
   WorktreeInteractiveOptions,
   WorktreeCreateSandboxOptions,
-} from "./createWorktree.js";
-import { claudeCode } from "./AgentProvider.js";
+} from "./createWorktree.ts";
+import { claudeCode } from "./AgentProvider.ts";
 import {
   createBindMountSandboxProvider,
   type BindMountSandboxHandle,
   type InteractiveExecOptions,
   type ExecResult,
   type SandboxProvider,
-} from "./SandboxProvider.js";
-import { makeLocalSandboxLayer } from "./testSandbox.js";
+} from "./SandboxProvider.ts";
+import { makeLocalSandboxLayer } from "./testSandbox.ts";
 
 const execAsync = promisify(exec);
 
@@ -53,7 +53,7 @@ describe("createWorktree", () => {
     });
 
     try {
-      expect(ws.worktreePath).toContain(".sandcastle/worktrees");
+      expect(ws.worktreePath).toContain(".isolator/worktrees");
       expect(ws.branch).toBe("test-branch");
       expect(existsSync(ws.worktreePath)).toBe(true);
     } finally {
@@ -73,8 +73,8 @@ describe("createWorktree", () => {
     });
 
     try {
-      expect(ws.worktreePath).toContain(".sandcastle/worktrees");
-      expect(ws.branch).toMatch(/^sandcastle\//);
+      expect(ws.worktreePath).toContain(".isolator/worktrees");
+      expect(ws.branch).toMatch(/^isolator\//);
       expect(existsSync(ws.worktreePath)).toBe(true);
     } finally {
       await ws.close();

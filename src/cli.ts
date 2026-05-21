@@ -1,18 +1,19 @@
-import { Command, Options } from "@effect/cli";
+import { Args, Command, Options } from "@effect/cli";
 import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import * as clack from "@clack/prompts";
 import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { styleText } from "node:util";
 
-import { Display } from "./Display.js";
-import { buildImage, removeImage } from "./DockerLifecycle.js";
+import { Display } from "./Display.ts";
+import { buildImage, removeImage } from "./DockerLifecycle.ts";
 import {
   buildImage as podmanBuildImage,
   removeImage as podmanRemoveImage,
-} from "./PodmanLifecycle.js";
+} from "./PodmanLifecycle.ts";
 import {
   scaffold,
   listTemplates,
@@ -23,14 +24,21 @@ import {
   listSandboxProviders,
   getSandboxProvider,
   getNextStepsLines,
-} from "./InitService.js";
-import { defaultImageName } from "./sandboxes/docker.js";
+} from "./InitService.ts";
+import { defaultImageName } from "./sandboxes/docker.ts";
 import type {
   AgentEntry,
   BacklogManagerEntry,
   SandboxProviderEntry,
-} from "./InitService.js";
-import { ConfigDirError, InitError } from "./errors.js";
+} from "./InitService.ts";
+import { ConfigDirError, InitError } from "./errors.ts";
+import {
+  connectProject,
+  createBrain,
+  defaultIsolatorHomeLayer,
+  formatBrainError,
+} from "./brain/index.ts";
+import { pipelines } from "./pipelines/index.ts";
 
 const require = createRequire(import.meta.url);
 const VERSION = (require("../package.json") as { version: string }).version;
@@ -61,7 +69,7 @@ const defaultUidBuildArgs = (): Record<string, string> => {
 
 // --- Config directory check ---
 
-const CONFIG_DIR = ".sandcastle";
+const CONFIG_DIR = ".isolator";
 
 const requireConfigDir = (
   cwd: string,
@@ -74,7 +82,7 @@ const requireConfigDir = (
     if (!exists) {
       yield* Effect.fail(
         new ConfigDirError({
-          message: "No .sandcastle/ found. Run `sandcastle init` first.",
+          message: "No .isolator/ found. Run `isolator init` first.",
         }),
       );
     }
@@ -245,13 +253,13 @@ const initCommand = Command.make(
         selectedTemplate = selected as string;
       }
 
-      // Offer to create the "Sandcastle" label on the repo (skip for non-GitHub backlog managers)
+      // Offer to create the "Isolator" label on the repo (skip for non-GitHub backlog managers)
       let shouldCreateLabel: boolean | symbol = false;
       if (selectedBacklogManager.name === "github-issues") {
         shouldCreateLabel = yield* Effect.promise(() =>
           clack.confirm({
             message:
-              'Create a "Sandcastle" GitHub label? (Templates filter issues by this label)',
+              'Create a "Isolator" GitHub label? (Templates filter issues by this label)',
             initialValue: true,
           }),
         );
@@ -260,7 +268,7 @@ const initCommand = Command.make(
           yield* Effect.try({
             try: () =>
               execSync(
-                'gh label create "Sandcastle" --description "Issues for Sandcastle to work on" --color "F9A825" 2>/dev/null',
+                'gh label create "Isolator" --description "Issues for Isolator to work on" --color "F9A825" 2>/dev/null',
                 { cwd, stdio: "ignore" },
               ),
             catch: () => undefined,
@@ -269,7 +277,7 @@ const initCommand = Command.make(
       }
 
       const scaffoldResult = yield* d.spinner(
-        "Scaffolding .sandcastle/ config directory...",
+        "Scaffolding .isolator/ config directory...",
         scaffold(cwd, {
           agent: selectedAgent,
           model: selectedModel,
@@ -314,7 +322,7 @@ const initCommand = Command.make(
         yield* d.status("Init complete! Image built successfully.", "success");
       } else {
         yield* d.status(
-          `Init complete! Run \`sandcastle ${selectedSandboxProvider.cliNamespace} build-image\` to build the ${providerLabel} image later.`,
+          `Init complete! Run \`isolator ${selectedSandboxProvider.cliNamespace} build-image\` to build the ${providerLabel} image later.`,
           "success",
         );
       }
@@ -476,21 +484,165 @@ const podmanCommand = Command.make("podman", {}, () =>
   Command.withSubcommands([podmanBuildImageCommand, podmanRemoveImageCommand]),
 );
 
-// --- Root command ---
+// --- Brain commands ---
 
-const rootCommand = Command.make("sandcastle", {}, () =>
+/** Map any brain-layer error to a friendly `InitError` for the CLI. */
+const asInitError = <A, E extends Parameters<typeof formatBrainError>[0], R>(
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<A, InitError, R> =>
+  effect.pipe(
+    Effect.catchAll((error) =>
+      Effect.fail(new InitError({ message: formatBrainError(error) })),
+    ),
+  );
+
+const brainPathArg = Args.text({ name: "path" }).pipe(
+  Args.withDescription("Directory for the brain vault (default: ~/brain)"),
+  Args.optional,
+);
+
+const brainNewCommand = Command.make(
+  "new",
+  { path: brainPathArg },
+  ({ path }) =>
+    Effect.gen(function* () {
+      const d = yield* Display;
+      const target = Option.getOrElse(path, () => join(homedir(), "brain"));
+      const vaultPath = yield* asInitError(
+        createBrain(target).pipe(Effect.provide(defaultIsolatorHomeLayer)),
+      );
+      yield* d.status(`Brain vault created at ${vaultPath}`, "success");
+    }),
+);
+
+const brainCommand = Command.make("brain", {}, () =>
   Effect.gen(function* () {
     const d = yield* Display;
-    yield* d.status(`Sandcastle v${VERSION}`, "info");
+    yield* d.status(
+      "Brain commands. Use --help to see available subcommands.",
+      "info",
+    );
+  }),
+).pipe(Command.withSubcommands([brainNewCommand]));
+
+const projectArg = Args.text({ name: "project" }).pipe(
+  Args.withDescription("Project name (normalized to a slug)"),
+);
+
+const brainOption = Options.text("brain").pipe(
+  Options.withDescription("Path to an existing brain vault to connect to"),
+  Options.optional,
+);
+
+const newBrainOption = Options.text("new-brain").pipe(
+  Options.withDescription("Create a new brain vault at this path"),
+  Options.optional,
+);
+
+const repoOption = Options.text("repo").pipe(
+  Options.withDescription("Path to an existing project source repo to link"),
+  Options.optional,
+);
+
+const newRepoOption = Options.text("new-repo").pipe(
+  Options.withDescription(
+    "Create a new project source repo at this path (default: ./<slug>)",
+  ),
+  Options.optional,
+);
+
+const connectCommand = Command.make(
+  "connect",
+  {
+    project: projectArg,
+    brain: brainOption,
+    newBrain: newBrainOption,
+    repo: repoOption,
+    newRepo: newRepoOption,
+  },
+  ({ project, brain, newBrain, repo, newRepo }) =>
+    Effect.gen(function* () {
+      const d = yield* Display;
+      const result = yield* asInitError(
+        connectProject({
+          name: project,
+          cwd: process.cwd(),
+          brain: Option.getOrUndefined(brain),
+          newBrain: Option.getOrUndefined(newBrain),
+          repo: Option.getOrUndefined(repo),
+          newRepo: Option.getOrUndefined(newRepo),
+        }).pipe(Effect.provide(defaultIsolatorHomeLayer)),
+      );
+      if (result.createdBrain) {
+        yield* d.status(
+          `Brain vault created at ${result.vaultPath}`,
+          "success",
+        );
+      }
+      yield* d.status(`Connected project "${result.slug}"`, "success");
+      yield* d.text(styleText("dim", `  vault: ${result.projectDir}`));
+      yield* d.text(styleText("dim", `  repo:  ${result.repoPath}`));
+    }),
+);
+
+// --- Pipeline command ---
+
+const pipelineNameArg = Args.text({ name: "name" }).pipe(
+  Args.withDescription("Pipeline to run (e.g. echo)"),
+);
+
+const pipelineCommand = Command.make(
+  "pipeline",
+  { name: pipelineNameArg, project: projectArg },
+  ({ name, project }) =>
+    Effect.gen(function* () {
+      const d = yield* Display;
+      const pipeline = pipelines[name];
+      if (pipeline === undefined) {
+        const names = Object.keys(pipelines).join(", ");
+        yield* Effect.fail(
+          new InitError({
+            message: `Unknown pipeline "${name}". Available: ${names}`,
+          }),
+        );
+      }
+      const result = yield* Effect.tryPromise({
+        try: () => pipeline!(project),
+        catch: (cause) =>
+          new InitError({
+            message: `Pipeline "${name}" failed: ${
+              cause instanceof Error ? cause.message : String(cause)
+            }`,
+          }),
+      });
+      yield* d.status(`Pipeline "${name}" complete`, "success");
+      yield* d.text(styleText("dim", `  run:      ${result.runId}`));
+      yield* d.text(styleText("dim", `  artifact: ${result.artifactPath}`));
+    }),
+);
+
+// --- Root command ---
+
+const rootCommand = Command.make("isolator", {}, () =>
+  Effect.gen(function* () {
+    const d = yield* Display;
+    yield* d.status(`Isolator v${VERSION}`, "info");
     yield* d.status("Use --help to see available commands.", "info");
   }),
 );
 
-export const sandcastle = rootCommand.pipe(
-  Command.withSubcommands([initCommand, dockerCommand, podmanCommand]),
+export const isolator = rootCommand.pipe(
+  Command.withSubcommands([
+    initCommand,
+    brainCommand,
+    connectCommand,
+    pipelineCommand,
+    dockerCommand,
+    podmanCommand,
+  ]),
 );
 
-export const cli = Command.run(sandcastle, {
-  name: "sandcastle",
+export const cli = Command.run(isolator, {
+  name: "isolator",
   version: VERSION,
 });

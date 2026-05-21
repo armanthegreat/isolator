@@ -4,8 +4,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolvePrompt } from "./PromptResolver.js";
-import { PromptError } from "./errors.js";
+import { resolvePrompt } from "./PromptResolver.ts";
+import { PromptError } from "./errors.ts";
 
 const run = <A, E>(effect: Effect.Effect<A, E, NodeContext.NodeContext>) =>
   Effect.runPromise(effect.pipe(Effect.provide(NodeContext.layer)));

@@ -15,12 +15,12 @@
 // gate) and the parallel-planner (concurrent execution with a planning phase).
 //
 // Usage:
-//   npx tsx .sandcastle/main.mts
+//   npx tsx .isolator/main.mts
 // Or add to package.json:
-//   "scripts": { "sandcastle": "npx tsx .sandcastle/main.mts" }
+//   "scripts": { "isolator": "npx tsx .isolator/main.mts" }
 
-import * as sandcastle from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import * as isolator from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -49,11 +49,11 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   console.log(`\n=== Iteration ${iteration}/${MAX_ITERATIONS} ===\n`);
 
   // Generate a unique branch name for this iteration.
-  const branch = `sandcastle/sequential-reviewer/${Date.now()}`;
+  const branch = `isolator/sequential-reviewer/${Date.now()}`;
 
   // Create a single sandbox that both the implementer and reviewer share.
   // This gives both agents a real, named branch that persists across phases.
-  const sandbox = await sandcastle.createSandbox({
+  const sandbox = await isolator.createSandbox({
     branch,
     sandbox: docker(),
     hooks,
@@ -73,8 +73,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     const implement = await sandbox.run({
       name: "implementer",
       maxIterations: 100,
-      agent: sandcastle.claudeCode("claude-sonnet-4-6"),
-      promptFile: "./.sandcastle/implement-prompt.md",
+      agent: isolator.claudeCode("claude-sonnet-4-6"),
+      promptFile: "./.isolator/implement-prompt.md",
     });
 
     if (!implement.commits.length) {
@@ -95,8 +95,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     await sandbox.run({
       name: "reviewer",
       maxIterations: 1,
-      agent: sandcastle.claudeCode("claude-sonnet-4-6"),
-      promptFile: "./.sandcastle/review-prompt.md",
+      agent: isolator.claudeCode("claude-sonnet-4-6"),
+      promptFile: "./.isolator/review-prompt.md",
       promptArgs: {
         BRANCH: branch,
       },

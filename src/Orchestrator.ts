@@ -1,26 +1,26 @@
 import { Deferred, Effect } from "effect";
-import { AgentStreamEmitter } from "./AgentStreamEmitter.js";
-import { Display } from "./Display.js";
-import { preprocessPrompt } from "./PromptPreprocessor.js";
+import { AgentStreamEmitter } from "./AgentStreamEmitter.ts";
+import { Display } from "./Display.ts";
+import { preprocessPrompt } from "./PromptPreprocessor.ts";
 import {
   AgentError,
   AgentIdleTimeoutError,
   SessionCaptureError,
-} from "./errors.js";
-import type { SandboxError } from "./errors.js";
-import type { SandboxService } from "./SandboxFactory.js";
-import { SandboxFactory, SANDBOX_REPO_DIR } from "./SandboxFactory.js";
-import { withSandboxLifecycle, type SandboxHooks } from "./SandboxLifecycle.js";
-import type { AgentProvider, IterationUsage } from "./AgentProvider.js";
-import { TextDeltaBuffer } from "./TextDeltaBuffer.js";
+} from "./errors.ts";
+import type { SandboxError } from "./errors.ts";
+import type { SandboxService } from "./SandboxFactory.ts";
+import { SandboxFactory, SANDBOX_REPO_DIR } from "./SandboxFactory.ts";
+import { withSandboxLifecycle, type SandboxHooks } from "./SandboxLifecycle.ts";
+import type { AgentProvider, IterationUsage } from "./AgentProvider.ts";
+import { TextDeltaBuffer } from "./TextDeltaBuffer.ts";
 import {
   hostSessionStore,
   sandboxSessionStore,
   transferSession,
-} from "./SessionStore.js";
-import { SessionPaths } from "./SessionPaths.js";
+} from "./SessionStore.ts";
+import { SessionPaths } from "./SessionPaths.ts";
 
-export type { ParsedStreamEvent, IterationUsage } from "./AgentProvider.js";
+export type { ParsedStreamEvent, IterationUsage } from "./AgentProvider.ts";
 
 const IDLE_WARNING_INTERVAL_MS = 60_000;
 
@@ -127,9 +127,7 @@ const invokeAgent = (
           errorDetail = resultText;
         }
         if (!errorDetail.trim()) {
-          const lines = execResult.stdout
-            .split("\n")
-            .filter((l) => l.trim());
+          const lines = execResult.stdout.split("\n").filter((l) => l.trim());
           errorDetail = lines.slice(-20).join("\n");
         }
         return yield* Effect.fail(
@@ -254,7 +252,7 @@ export const orchestrate = (
     let iterationPreservedPath: string | undefined;
 
     // Helper: check abort signal and bail via defect so run() can
-    // re-throw the signal's reason verbatim (no Sandcastle wrapping).
+    // re-throw the signal's reason verbatim (no Isolator wrapping).
     const checkAbort = (): Effect.Effect<void> =>
       options.signal?.aborted ? Effect.die(options.signal.reason) : Effect.void;
 

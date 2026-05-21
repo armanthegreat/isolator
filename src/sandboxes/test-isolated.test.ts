@@ -8,7 +8,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { testIsolated } from "./test-isolated.js";
+import { testIsolated } from "./test-isolated.ts";
 
 describe("testIsolated()", () => {
   it("returns a SandboxProvider with tag 'isolated' and name 'test-isolated'", () => {

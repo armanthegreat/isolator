@@ -1,4 +1,4 @@
-export { run } from "./run.js";
+export { run } from "./run.ts";
 export type {
   RunOptions,
   RunResult,
@@ -6,10 +6,10 @@ export type {
   IterationResult,
   IterationUsage,
   Timeouts,
-} from "./run.js";
-export { interactive } from "./interactive.js";
-export type { InteractiveOptions, InteractiveResult } from "./interactive.js";
-export { createSandbox } from "./createSandbox.js";
+} from "./run.ts";
+export { interactive } from "./interactive.ts";
+export type { InteractiveOptions, InteractiveResult } from "./interactive.ts";
+export { createSandbox } from "./createSandbox.ts";
 export type {
   CreateSandboxOptions,
   Sandbox,
@@ -18,8 +18,8 @@ export type {
   SandboxInteractiveOptions,
   SandboxInteractiveResult,
   CloseResult,
-} from "./createSandbox.js";
-export { createWorktree } from "./createWorktree.js";
+} from "./createSandbox.ts";
+export { createWorktree } from "./createWorktree.ts";
 export type {
   CreateWorktreeOptions,
   Worktree,
@@ -28,30 +28,30 @@ export type {
   WorktreeRunOptions,
   WorktreeRunResult,
   WorktreeCreateSandboxOptions,
-} from "./createWorktree.js";
-export type { PromptArgs } from "./PromptArgumentSubstitution.js";
-export type { AgentStreamEvent } from "./AgentStreamEmitter.js";
+} from "./createWorktree.ts";
+export type { PromptArgs } from "./PromptArgumentSubstitution.ts";
+export type { AgentStreamEvent } from "./AgentStreamEmitter.ts";
 export {
   hostSessionStore,
   sandboxSessionStore,
   transferSession,
-} from "./SessionStore.js";
-export type { SessionStore } from "./SessionStore.js";
+} from "./SessionStore.ts";
+export type { SessionStore } from "./SessionStore.ts";
 export {
   SessionPaths,
   sessionPathsLayer,
   defaultSessionPathsLayer,
-} from "./SessionPaths.js";
-export type { SandboxHooks } from "./SandboxLifecycle.js";
-export type { MountConfig } from "./MountConfig.js";
-export { Output, StructuredOutputError } from "./Output.js";
+} from "./SessionPaths.ts";
+export type { SandboxHooks } from "./SandboxLifecycle.ts";
+export type { MountConfig } from "./MountConfig.ts";
+export { Output, StructuredOutputError } from "./Output.ts";
 export type {
   OutputDefinition,
   OutputObjectDefinition,
   OutputStringDefinition,
-} from "./Output.js";
-export { CwdError } from "./resolveCwd.js";
-export { claudeCode, codex, opencode, pi } from "./AgentProvider.js";
+} from "./Output.ts";
+export { CwdError } from "./resolveCwd.ts";
+export { claudeCode, codex, opencode, pi } from "./AgentProvider.ts";
 export type {
   AgentProvider,
   AgentCommandOptions,
@@ -60,11 +60,11 @@ export type {
   CodexOptions,
   OpenCodeOptions,
   PiOptions,
-} from "./AgentProvider.js";
+} from "./AgentProvider.ts";
 export {
   createBindMountSandboxProvider,
   createIsolatedSandboxProvider,
-} from "./SandboxProvider.js";
+} from "./SandboxProvider.ts";
 export type {
   SandboxProvider,
   AnySandboxProvider,
@@ -87,4 +87,4 @@ export type {
   HeadBranchStrategy,
   MergeToHeadBranchStrategy,
   NamedBranchStrategy,
-} from "./SandboxProvider.js";
+} from "./SandboxProvider.ts";

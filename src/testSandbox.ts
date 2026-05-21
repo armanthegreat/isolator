@@ -9,8 +9,8 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
-import { CopyError, ExecError } from "./errors.js";
-import { type ExecResult, Sandbox } from "./SandboxFactory.js";
+import { CopyError, ExecError } from "./errors.ts";
+import { type ExecResult, Sandbox } from "./SandboxFactory.ts";
 
 /**
  * Creates an isolated git global config env so that test sandbox

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { extractStructuredOutput } from "./extractStructuredOutput.js";
-import { Output, StructuredOutputError } from "./Output.js";
+import { extractStructuredOutput } from "./extractStructuredOutput.ts";
+import { Output, StructuredOutputError } from "./Output.ts";
 
 // ---------------------------------------------------------------------------
 // Mock Standard Schema validators
@@ -186,7 +186,7 @@ describe("extractStructuredOutput — Output.object", () => {
   });
 
   it("handles whitespace around JSON inside tags", async () => {
-    const stdout = "<result>  \n  {\"a\": 1}  \n  </result>";
+    const stdout = '<result>  \n  {"a": 1}  \n  </result>';
     const def = Output.object({ tag: "result", schema: passthrough() });
     const value = await extractStructuredOutput(stdout, def, baseContext);
     expect(value).toEqual({ a: 1 });

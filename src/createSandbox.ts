@@ -1,55 +1,55 @@
 import { NodeContext, NodeFileSystem } from "@effect/platform-node";
 import { join } from "node:path";
 import { Effect, Layer, Ref } from "effect";
-import type { AgentProvider } from "./AgentProvider.js";
+import type { AgentProvider } from "./AgentProvider.ts";
 import {
   ClackDisplay,
   Display,
   FileDisplay,
   SilentDisplay,
   type DisplayEntry,
-} from "./Display.js";
-import { resolveEnv } from "./EnvResolver.js";
-import { mergeProviderEnv } from "./mergeProviderEnv.js";
-import { orchestrate, type IterationResult } from "./Orchestrator.js";
-import { defaultSessionPathsLayer } from "./SessionPaths.js";
+} from "./Display.ts";
+import { resolveEnv } from "./EnvResolver.ts";
+import { mergeProviderEnv } from "./mergeProviderEnv.ts";
+import { orchestrate, type IterationResult } from "./Orchestrator.ts";
+import { defaultSessionPathsLayer } from "./SessionPaths.ts";
 import {
   callbackAgentStreamEmitterLayer,
   noopAgentStreamEmitterLayer,
-} from "./AgentStreamEmitter.js";
+} from "./AgentStreamEmitter.ts";
 import {
   type PromptArgs,
   substitutePromptArgs,
   validateNoArgsWithInlinePrompt,
   validateNoBuiltInArgOverride,
   BUILT_IN_PROMPT_ARG_KEYS,
-} from "./PromptArgumentSubstitution.js";
-import { resolvePrompt } from "./PromptResolver.js";
-import { preprocessPrompt } from "./PromptPreprocessor.js";
-import type { LoggingOption, Timeouts } from "./run.js";
-import { buildLogFilename, printFileDisplayStartup } from "./run.js";
+} from "./PromptArgumentSubstitution.ts";
+import { resolvePrompt } from "./PromptResolver.ts";
+import { preprocessPrompt } from "./PromptPreprocessor.ts";
+import type { LoggingOption, Timeouts } from "./run.ts";
+import { buildLogFilename, printFileDisplayStartup } from "./run.ts";
 import {
   withSandboxLifecycle,
   runHostHooks,
   type SandboxHooks,
-} from "./SandboxLifecycle.js";
+} from "./SandboxLifecycle.ts";
 import {
   Sandbox as SandboxTag,
   SandboxFactory,
   SANDBOX_REPO_DIR,
   resolveGitMounts,
-} from "./SandboxFactory.js";
+} from "./SandboxFactory.ts";
 import type {
   SandboxProvider,
   BindMountSandboxHandle,
   IsolatedSandboxHandle,
-} from "./SandboxProvider.js";
-import { startSandbox } from "./startSandbox.js";
-import { syncOut } from "./syncOut.js";
-import * as WorktreeManager from "./WorktreeManager.js";
-import { copyToWorktree } from "./CopyToWorktree.js";
-import { resolveCwd } from "./resolveCwd.js";
-import { patchGitMountsForWindows } from "./mountUtils.js";
+} from "./SandboxProvider.ts";
+import { startSandbox } from "./startSandbox.ts";
+import { syncOut } from "./syncOut.ts";
+import * as WorktreeManager from "./WorktreeManager.ts";
+import { copyToWorktree } from "./CopyToWorktree.ts";
+import { resolveCwd } from "./resolveCwd.ts";
+import { patchGitMountsForWindows } from "./mountUtils.ts";
 
 export interface CreateSandboxOptions {
   /** Explicit branch for the worktree (required). */
@@ -59,11 +59,11 @@ export interface CreateSandboxOptions {
    * already exists. Defaults to `HEAD`.
    */
   readonly baseBranch?: string;
-  /** Sandbox provider (e.g. docker({ imageName: "sandcastle:myrepo" })). */
+  /** Sandbox provider (e.g. docker({ imageName: "isolator:myrepo" })). */
   readonly sandbox: SandboxProvider;
   /**
    * Host repo directory. Replaces `process.cwd()` as the anchor for
-   * `.sandcastle/worktrees/`, `.sandcastle/.env`, and git operations.
+   * `.isolator/worktrees/`, `.isolator/.env`, and git operations.
    *
    * - Relative paths are resolved against `process.cwd()`.
    * - Absolute paths are used as-is.
@@ -268,7 +268,7 @@ const buildSandboxHandle = (
         type: "file",
         path: join(
           hostRepoDir,
-          ".sandcastle",
+          ".isolator",
           "logs",
           buildLogFilename(branch, undefined, runOptions.name),
         ),
@@ -321,7 +321,7 @@ const buildSandboxHandle = (
         result = await Effect.runPromise(
           Effect.gen(function* () {
             const display = yield* Display;
-            yield* display.intro(runOptions.name ?? "sandcastle");
+            yield* display.intro(runOptions.name ?? "isolator");
 
             return yield* orchestrate({
               hostRepoDir,
@@ -528,7 +528,12 @@ export const createSandboxFromWorktree = async (
     options.sandbox.tag !== "isolated"
   ) {
     await Effect.runPromise(
-      copyToWorktree(options.copyToWorktree, hostRepoDir, worktreePath, options.timeouts?.copyToWorktreeMs),
+      copyToWorktree(
+        options.copyToWorktree,
+        hostRepoDir,
+        worktreePath,
+        options.timeouts?.copyToWorktreeMs,
+      ),
     );
   }
 
@@ -572,7 +577,11 @@ export const createSandboxFromWorktree = async (
         Effect.flatMap((gitMounts) =>
           Effect.tryPromise({
             try: () =>
-              patchGitMountsForWindows(gitMounts, worktreePath, SANDBOX_REPO_DIR),
+              patchGitMountsForWindows(
+                gitMounts,
+                worktreePath,
+                SANDBOX_REPO_DIR,
+              ),
             catch: (e) =>
               new Error(
                 `Failed to patch git mounts: ${e instanceof Error ? e.message : String(e)}`,
@@ -693,7 +702,12 @@ export const createSandbox = async (
     options.sandbox.tag !== "isolated"
   ) {
     await Effect.runPromise(
-      copyToWorktree(options.copyToWorktree, hostRepoDir, worktreePath, options.timeouts?.copyToWorktreeMs),
+      copyToWorktree(
+        options.copyToWorktree,
+        hostRepoDir,
+        worktreePath,
+        options.timeouts?.copyToWorktreeMs,
+      ),
     );
   }
 
@@ -745,7 +759,11 @@ export const createSandbox = async (
         Effect.flatMap((gitMounts) =>
           Effect.tryPromise({
             try: () =>
-              patchGitMountsForWindows(gitMounts, worktreePath, SANDBOX_REPO_DIR),
+              patchGitMountsForWindows(
+                gitMounts,
+                worktreePath,
+                SANDBOX_REPO_DIR,
+              ),
             catch: (e) =>
               new Error(
                 `Failed to patch git mounts: ${e instanceof Error ? e.message : String(e)}`,
