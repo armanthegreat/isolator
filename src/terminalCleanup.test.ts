@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { SHOW_CURSOR, makeTerminalCleanupHandler } from "./terminalCleanup.js";
+import { SHOW_CURSOR, makeTerminalCleanupHandler } from "./terminalCleanup.ts";
 
 describe("makeTerminalCleanupHandler", () => {
   it("calls setRawMode(false) and writes show-cursor when stdin is a TTY", () => {

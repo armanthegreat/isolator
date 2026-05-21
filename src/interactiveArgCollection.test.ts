@@ -13,13 +13,13 @@ vi.mock("@clack/prompts", async (importOriginal) => {
   };
 });
 
-import { interactive } from "./interactive.js";
+import { interactive } from "./interactive.ts";
 import {
   createBindMountSandboxProvider,
   type BindMountSandboxHandle,
   type InteractiveExecOptions,
-} from "./SandboxProvider.js";
-import { claudeCode } from "./AgentProvider.js";
+} from "./SandboxProvider.ts";
+import { claudeCode } from "./AgentProvider.ts";
 
 describe("interactive arg collection", () => {
   let hostDir: string;
@@ -27,7 +27,7 @@ describe("interactive arg collection", () => {
 
   beforeEach(() => {
     originalCwd = process.cwd();
-    hostDir = mkdtempSync(join(tmpdir(), "sandcastle-interactive-argcol-"));
+    hostDir = mkdtempSync(join(tmpdir(), "isolator-interactive-argcol-"));
     execSync("git init", { cwd: hostDir, stdio: "ignore" });
     execSync('git config user.email "test@test.com"', {
       cwd: hostDir,

@@ -11,11 +11,11 @@ import {
   WorktreeError,
   type DockerError,
   type SandboxError,
-} from "./errors.js";
-import type { Timeouts } from "./run.js";
-import * as WorktreeManager from "./WorktreeManager.js";
-import { copyToWorktree } from "./CopyToWorktree.js";
-import { Display } from "./Display.js";
+} from "./errors.ts";
+import type { Timeouts } from "./run.ts";
+import * as WorktreeManager from "./WorktreeManager.ts";
+import { copyToWorktree } from "./CopyToWorktree.ts";
+import { Display } from "./Display.ts";
 import type {
   SandboxProvider,
   BranchStrategy,
@@ -23,11 +23,11 @@ import type {
   BindMountSandboxHandle,
   IsolatedSandboxHandle,
   NoSandboxHandle,
-} from "./SandboxProvider.js";
-import { runHostHooks, type SandboxHooks } from "./SandboxLifecycle.js";
-import { startSandbox } from "./startSandbox.js";
-import { syncOut } from "./syncOut.js";
-import { patchGitMountsForWindows } from "./mountUtils.js";
+} from "./SandboxProvider.ts";
+import { runHostHooks, type SandboxHooks } from "./SandboxLifecycle.ts";
+import { startSandbox } from "./startSandbox.ts";
+import { syncOut } from "./syncOut.ts";
+import { patchGitMountsForWindows } from "./mountUtils.ts";
 
 export interface ExecResult {
   readonly stdout: string;
@@ -335,7 +335,7 @@ export const WorktreeDockerSandboxFactory = {
           Effect.catchAll((e) =>
             Effect.sync(() => {
               console.error(
-                "[sandcastle] Warning: failed to prune stale worktrees:",
+                "[isolator] Warning: failed to prune stale worktrees:",
                 e.message,
               );
             }),
@@ -504,7 +504,12 @@ export const WorktreeDockerSandboxFactory = {
                 (copyPaths && copyPaths.length > 0
                   ? display.spinner(
                       "Copying to worktree",
-                      copyToWorktree(copyPaths, hostRepoDir, worktreeInfo.path, timeouts?.copyToWorktreeMs),
+                      copyToWorktree(
+                        copyPaths,
+                        hostRepoDir,
+                        worktreeInfo.path,
+                        timeouts?.copyToWorktreeMs,
+                      ),
                     )
                   : Effect.succeed(undefined)
                 ).pipe(Effect.map(() => worktreeInfo)),

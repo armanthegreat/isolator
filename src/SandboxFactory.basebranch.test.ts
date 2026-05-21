@@ -6,18 +6,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
-import { SilentDisplay, type DisplayEntry } from "./Display.js";
+import { SilentDisplay, type DisplayEntry } from "./Display.ts";
 import {
   createBindMountSandboxProvider,
   type BindMountSandboxHandle,
   type SandboxProvider,
-} from "./SandboxProvider.js";
+} from "./SandboxProvider.ts";
 import {
   SandboxConfig,
   SandboxFactory,
   SANDBOX_REPO_DIR,
   WorktreeDockerSandboxFactory,
-} from "./SandboxFactory.js";
+} from "./SandboxFactory.ts";
 
 const execAsync = promisify(exec);
 
@@ -64,7 +64,7 @@ describe("WorktreeDockerSandboxFactory — baseBranch (real git)", () => {
   });
 
   it("forks new branch from baseBranch when run() goes through SandboxFactory", async () => {
-    const hostRepoDir = await mkdtemp(join(tmpdir(), "sandcastle-bb-test-"));
+    const hostRepoDir = await mkdtemp(join(tmpdir(), "isolator-bb-test-"));
     tempDirs.push(hostRepoDir);
     await initRepo(hostRepoDir);
     await commitFile(hostRepoDir, "init.txt", "init", "initial commit");
@@ -74,7 +74,7 @@ describe("WorktreeDockerSandboxFactory — baseBranch (real git)", () => {
     });
     await commitFile(hostRepoDir, "second.txt", "second", "second commit");
 
-    const childBranch = "sandcastle/child-from-base";
+    const childBranch = "isolator/child-from-base";
     const layer = Layer.provide(
       WorktreeDockerSandboxFactory.layer,
       Layer.mergeAll(

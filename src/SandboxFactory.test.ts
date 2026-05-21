@@ -6,15 +6,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { AgentError, AgentIdleTimeoutError, WorktreeError } from "./errors.js";
-import { SilentDisplay, type DisplayEntry } from "./Display.js";
+import { AgentError, AgentIdleTimeoutError, WorktreeError } from "./errors.ts";
+import { SilentDisplay, type DisplayEntry } from "./Display.ts";
 import {
   createBindMountSandboxProvider,
   type SandboxProvider,
   type BindMountSandboxHandle,
   type BranchStrategy,
-} from "./SandboxProvider.js";
-import { testIsolated } from "./sandboxes/test-isolated.js";
+} from "./SandboxProvider.ts";
+import { testIsolated } from "./sandboxes/test-isolated.ts";
 
 vi.mock("./WorktreeManager.js", () => ({
   create: vi.fn(),
@@ -23,14 +23,14 @@ vi.mock("./WorktreeManager.js", () => ({
   hasUncommittedChanges: vi.fn(),
 }));
 
-import * as WorktreeManager from "./WorktreeManager.js";
+import * as WorktreeManager from "./WorktreeManager.ts";
 import {
   Sandbox,
   SandboxFactory,
   SandboxConfig,
   WorktreeDockerSandboxFactory,
   SANDBOX_REPO_DIR,
-} from "./SandboxFactory.js";
+} from "./SandboxFactory.ts";
 
 const mockCreate = vi.mocked(WorktreeManager.create);
 const mockRemove = vi.mocked(WorktreeManager.remove);
@@ -78,11 +78,11 @@ beforeEach(() => {
 
 describe("WorktreeDockerSandboxFactory", () => {
   let hostRepoDir: string;
-  const worktreePath = "/tmp/sandcastle-worktrees/sandcastle-123";
+  const worktreePath = "/tmp/isolator-worktrees/isolator-123";
   const tempDirs: string[] = [];
 
   const makeTempRepo = async () => {
-    const dir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const dir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(dir);
     await mkdir(join(dir, ".git"));
     return dir;
@@ -114,7 +114,7 @@ describe("WorktreeDockerSandboxFactory", () => {
     mockCreate.mockReturnValue(
       Effect.succeed({
         path: worktreePath,
-        branch: "sandcastle/20240101-000000",
+        branch: "isolator/20240101-000000",
       }),
     );
     mockRemove.mockReturnValue(Effect.void);
@@ -167,7 +167,7 @@ describe("WorktreeDockerSandboxFactory", () => {
     mockCreate.mockImplementation(() =>
       Effect.sync(() => {
         callOrder.push("worktree-create");
-        return { path: worktreePath, branch: "sandcastle/20240101-000000" };
+        return { path: worktreePath, branch: "isolator/20240101-000000" };
       }),
     );
     const { provider } = makeMockProvider();
@@ -246,7 +246,7 @@ describe("WorktreeDockerSandboxFactory", () => {
     mockCreate.mockImplementation(() =>
       Effect.sync(() => {
         callOrder.push("create");
-        return { path: worktreePath, branch: "sandcastle/20240101-000000" };
+        return { path: worktreePath, branch: "isolator/20240101-000000" };
       }),
     );
 
@@ -639,7 +639,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   /** Set up WorktreeManager mocks so the worktree path points at the real repo. */
   const setupWorktreeMocks = (hostDir: string) => {
     mockCreate.mockReturnValue(
-      Effect.succeed({ path: hostDir, branch: "sandcastle/20240101-000000" }),
+      Effect.succeed({ path: hostDir, branch: "isolator/20240101-000000" }),
     );
     mockRemove.mockReturnValue(Effect.void);
     mockPruneStale.mockReturnValue(Effect.void);
@@ -654,7 +654,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("copies copyToWorktree files into the isolated sandbox via copyIn", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -681,7 +681,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("copies nested copyToWorktree paths, creating parent directories", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -711,7 +711,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("works without copyToWorktree (no regression)", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello world", "initial");
@@ -735,7 +735,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("copies copyToWorktree directories into the isolated sandbox via copyIn", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -768,7 +768,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("skips missing copyToWorktree paths without error", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -789,13 +789,13 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("creates a worktree before starting the isolated sandbox", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
 
     mockCreate.mockReturnValue(
-      Effect.succeed({ path: hostDir, branch: "sandcastle/20240101-000000" }),
+      Effect.succeed({ path: hostDir, branch: "isolator/20240101-000000" }),
     );
     mockRemove.mockReturnValue(Effect.void);
     mockPruneStale.mockReturnValue(Effect.void);
@@ -812,7 +812,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("creates a worktree with a named branch for branch strategy", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -851,7 +851,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("provides hostWorktreePath in SandboxInfo", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -860,7 +860,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
     mockCreate.mockReturnValue(
       Effect.succeed({
         path: fakeWorktreePath,
-        branch: "sandcastle/20240101-000000",
+        branch: "isolator/20240101-000000",
       }),
     );
     mockRemove.mockReturnValue(Effect.void);
@@ -882,13 +882,13 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("removes worktree on success with clean worktree", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
 
     mockCreate.mockReturnValue(
-      Effect.succeed({ path: hostDir, branch: "sandcastle/20240101-000000" }),
+      Effect.succeed({ path: hostDir, branch: "isolator/20240101-000000" }),
     );
     mockRemove.mockReturnValue(Effect.void);
     mockPruneStale.mockReturnValue(Effect.void);
@@ -905,13 +905,13 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("preserves worktree on failure with dirty worktree", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
 
     mockCreate.mockReturnValue(
-      Effect.succeed({ path: hostDir, branch: "sandcastle/20240101-000000" }),
+      Effect.succeed({ path: hostDir, branch: "isolator/20240101-000000" }),
     );
     mockRemove.mockReturnValue(Effect.void);
     mockPruneStale.mockReturnValue(Effect.void);
@@ -930,7 +930,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("prunes stale worktrees before creating a new one", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -944,7 +944,7 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
     mockCreate.mockImplementation(() =>
       Effect.sync(() => {
         callOrder.push("create");
-        return { path: hostDir, branch: "sandcastle/20240101-000000" };
+        return { path: hostDir, branch: "isolator/20240101-000000" };
       }),
     );
     mockRemove.mockReturnValue(Effect.void);
@@ -963,14 +963,14 @@ describe("WorktreeDockerSandboxFactory — isolated providers", () => {
   });
 
   it("provides applyToHost callback that syncs commits to worktree", async () => {
-    const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+    const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
     tempDirs.push(hostDir);
     await initRepo(hostDir);
     await commitFile(hostDir, "hello.txt", "hello", "initial");
 
     // Use hostDir as worktree path — applyToHost runs syncOut targeting the worktree
     mockCreate.mockReturnValue(
-      Effect.succeed({ path: hostDir, branch: "sandcastle/20240101-000000" }),
+      Effect.succeed({ path: hostDir, branch: "isolator/20240101-000000" }),
     );
     mockRemove.mockReturnValue(Effect.void);
     mockPruneStale.mockReturnValue(Effect.void);

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
-import { Display } from "./Display.js";
-import { PromptError } from "./errors.js";
-import { SHELL_BLOCK_MARKER } from "./PromptPreprocessor.js";
+import { Display } from "./Display.ts";
+import { PromptError } from "./errors.ts";
+import { SHELL_BLOCK_MARKER } from "./PromptPreprocessor.ts";
 
 const SHELL_BLOCK_PATTERN = /!`([^`]+)`/g;
 
@@ -13,7 +13,7 @@ const SHELL_BLOCK_PATTERN = /!`([^`]+)`/g;
 export type PromptArgs = Record<string, string | number | boolean>;
 
 /**
- * Prompt argument keys that Sandcastle injects automatically.
+ * Prompt argument keys that Isolator injects automatically.
  * These cannot be overridden via `promptArgs`.
  */
 export const BUILT_IN_PROMPT_ARG_KEYS = [

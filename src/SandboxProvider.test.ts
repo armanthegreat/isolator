@@ -5,7 +5,7 @@ import {
   type BindMountSandboxHandle,
   type IsolatedSandboxHandle,
   type SandboxProvider,
-} from "./SandboxProvider.js";
+} from "./SandboxProvider.ts";
 
 describe("createBindMountSandboxProvider", () => {
   const makeMockHandle = (): BindMountSandboxHandle => ({

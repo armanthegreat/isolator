@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { Display } from "./Display.js";
-import type { SandboxError } from "./errors.js";
+import { Display } from "./Display.ts";
+import type { SandboxError } from "./errors.ts";
 
 /**
  * Formats a tagged SandboxError into a user-friendly message with

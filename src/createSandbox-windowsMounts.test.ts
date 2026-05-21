@@ -33,9 +33,9 @@ vi.mock("./mountUtils.js", async (importOriginal) => {
   };
 });
 
-import { createSandbox, createSandboxFromWorktree } from "./createSandbox.js";
-import { createBindMountSandboxProvider } from "./SandboxProvider.js";
-import { SANDBOX_REPO_DIR } from "./SandboxFactory.js";
+import { createSandbox, createSandboxFromWorktree } from "./createSandbox.ts";
+import { createBindMountSandboxProvider } from "./SandboxProvider.ts";
+import { SANDBOX_REPO_DIR } from "./SandboxFactory.ts";
 
 /** A bind-mount provider that captures mounts without starting a real container */
 const captureMountsProvider = () => {
@@ -109,7 +109,7 @@ describe("createSandbox Windows mount patching", () => {
       // gitMounts should be an array (possibly empty if no parent .git)
       expect(Array.isArray(gitMounts)).toBe(true);
       // worktreePath should be the created worktree path
-      expect(calledWorktreePath).toContain(".sandcastle/worktrees");
+      expect(calledWorktreePath).toContain(".isolator/worktrees");
       // sandboxRepoDir should be the canonical sandbox dir
       expect(sandboxRepoDir).toBe(SANDBOX_REPO_DIR);
     } finally {
@@ -123,7 +123,7 @@ describe("createSandbox Windows mount patching", () => {
     await commitFile(hostDir, "init.txt", "init", "initial commit");
 
     // Create a worktree to pass to createSandboxFromWorktree
-    const worktreePath = join(hostDir, ".sandcastle", "worktrees", "test-wt");
+    const worktreePath = join(hostDir, ".isolator", "worktrees", "test-wt");
     await execAsync(`git worktree add "${worktreePath}" -b test-wt-branch`, {
       cwd: hostDir,
     });

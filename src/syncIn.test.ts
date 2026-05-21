@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
-import { testIsolated } from "./sandboxes/test-isolated.js";
-import { syncIn } from "./syncIn.js";
+import { testIsolated } from "./sandboxes/test-isolated.ts";
+import { syncIn } from "./syncIn.ts";
 
 const execAsync = promisify(exec);
 

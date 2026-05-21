@@ -16,7 +16,7 @@ import {
   type BindMountSandboxHandle,
   type BindMountSandboxProvider,
   type ExecResult,
-} from "../SandboxProvider.js";
+} from "../SandboxProvider.ts";
 
 /**
  * Create a filesystem-based test bind-mount sandbox provider.
@@ -29,7 +29,7 @@ export const testBindMount = (): BindMountSandboxProvider =>
   createBindMountSandboxProvider({
     name: "test-bind-mount",
     create: async (): Promise<BindMountSandboxHandle> => {
-      const sandboxRoot = await mkdtemp(join(tmpdir(), "sandcastle-test-bm-"));
+      const sandboxRoot = await mkdtemp(join(tmpdir(), "isolator-test-bm-"));
       const worktreePath = join(sandboxRoot, "workspace");
       await mkdir(worktreePath, { recursive: true });
 

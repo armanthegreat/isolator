@@ -10,8 +10,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import type { IsolatedSandboxHandle } from "./SandboxProvider.js";
-import { SyncError } from "./errors.js";
+import type { IsolatedSandboxHandle } from "./SandboxProvider.ts";
+import { SyncError } from "./errors.ts";
 
 /**
  * Execute a command on the host side, returning stdout.
@@ -90,7 +90,7 @@ export const syncIn = (
 
     // Create git bundle on host capturing all refs
     const bundleDir = yield* Effect.tryPromise({
-      try: () => mkdtemp(join(tmpdir(), "sandcastle-bundle-")),
+      try: () => mkdtemp(join(tmpdir(), "isolator-bundle-")),
       catch: (e) =>
         new SyncError({
           message: `Failed to create temp dir: ${e instanceof Error ? e.message : String(e)}`,
@@ -108,7 +108,7 @@ export const syncIn = (
         // Create temp dir in sandbox and copy bundle in
         const mkTempResult = yield* execOk(
           handle,
-          "mktemp -d -t sandcastle-XXXXXX",
+          "mktemp -d -t isolator-XXXXXX",
         );
         const sandboxTmpDir = mkTempResult.stdout.trim();
         const bundleSandboxPath = `${sandboxTmpDir}/repo.bundle`;

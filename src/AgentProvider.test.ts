@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { claudeCode, codex, opencode, pi } from "./AgentProvider.js";
-import type { AgentCommandOptions } from "./AgentProvider.js";
+import { claudeCode, codex, opencode, pi } from "./AgentProvider.ts";
+import type { AgentCommandOptions } from "./AgentProvider.ts";
 
 /** Shorthand: build options with dangerouslySkipPermissions: true (mirrors existing sandbox callers). */
 const opts = (prompt: string): AgentCommandOptions => ({
@@ -759,7 +759,9 @@ describe("opencode factory", () => {
   });
 
   it("buildPrintCommand shell-escapes the variant value", () => {
-    const provider = opencode("opencode/big-pickle", { variant: "it's tricky" });
+    const provider = opencode("opencode/big-pickle", {
+      variant: "it's tricky",
+    });
     const { command } = provider.buildPrintCommand(opts("test"));
     expect(command).toContain("--variant 'it'\\''s tricky'");
   });

@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 import { execFile } from "node:child_process";
 import { resolve } from "node:path";
-import { DockerError } from "./errors.js";
-import { formatVolumeMount, type SelinuxLabel } from "./mountUtils.js";
+import { DockerError } from "./errors.ts";
+import { formatVolumeMount, type SelinuxLabel } from "./mountUtils.ts";
 
 const dockerExec = (args: string[]): Effect.Effect<string, DockerError> =>
   Effect.async((resume) => {
@@ -27,11 +27,11 @@ const dockerExec = (args: string[]): Effect.Effect<string, DockerError> =>
   });
 
 /**
- * Build the sandcastle Docker image.
+ * Build the isolator Docker image.
  *
  * When `dockerfile` is provided, uses `docker build -f <dockerfile> <cwd>`
  * so COPY instructions resolve relative to the current working directory.
- * Otherwise, uses `docker build <dockerfileDir>` (the default .sandcastle/ directory).
+ * Otherwise, uses `docker build <dockerfileDir>` (the default .isolator/ directory).
  */
 export const buildImage = (
   imageName: string,

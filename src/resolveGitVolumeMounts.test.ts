@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { Effect } from "effect";
 import { NodeFileSystem } from "@effect/platform-node";
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveGitMounts } from "./SandboxFactory.js";
+import { resolveGitMounts } from "./SandboxFactory.ts";
 
 describe("resolveGitMounts", () => {
   const dirs: string[] = [];

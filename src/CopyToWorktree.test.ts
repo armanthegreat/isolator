@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Exit } from "effect";
 import { describe, expect, it, vi } from "vitest";
-import { copyToWorktree, getCopyOnWriteFlags } from "./CopyToWorktree.js";
-import { CopyToWorktreeError, CopyToWorktreeTimeoutError } from "./errors.js";
+import { copyToWorktree, getCopyOnWriteFlags } from "./CopyToWorktree.ts";
+import { CopyToWorktreeError, CopyToWorktreeTimeoutError } from "./errors.ts";
 
 describe("getCopyOnWriteFlags", () => {
   it("returns -cR on darwin (APFS clonefile)", () => {
@@ -103,12 +103,7 @@ describe("copyToWorktree", () => {
     try {
       const customTimeout = 500;
       const exitPromise = Effect.runPromiseExit(
-        copyToWorktree(
-          ["big-file.txt"],
-          hostDir,
-          worktreeDir,
-          customTimeout,
-        ),
+        copyToWorktree(["big-file.txt"], hostDir, worktreeDir, customTimeout),
       );
 
       // Advance past the custom timeout

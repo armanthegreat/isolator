@@ -6,7 +6,7 @@ import {
   CopyToWorktreeError,
   CopyToWorktreeTimeoutError,
   withTimeout,
-} from "./errors.js";
+} from "./errors.ts";
 
 const COPY_TO_WORKTREE_TIMEOUT_MS = 60_000;
 

@@ -10,11 +10,11 @@ import {
   createIsolatedSandboxProvider,
   type BindMountSandboxHandle,
   type IsolatedSandboxHandle,
-} from "./SandboxProvider.js";
-import { Sandbox, SANDBOX_REPO_DIR } from "./SandboxFactory.js";
-import { startSandbox, COPY_PATHS_TIMEOUT_MS } from "./startSandbox.js";
-import { testIsolated } from "./sandboxes/test-isolated.js";
-import { CopyToWorktreeTimeoutError } from "./errors.js";
+} from "./SandboxProvider.ts";
+import { Sandbox, SANDBOX_REPO_DIR } from "./SandboxFactory.ts";
+import { startSandbox, COPY_PATHS_TIMEOUT_MS } from "./startSandbox.ts";
+import { testIsolated } from "./sandboxes/test-isolated.ts";
+import { CopyToWorktreeTimeoutError } from "./errors.ts";
 
 const execAsync = promisify(exec);
 
@@ -125,7 +125,7 @@ describe("startSandbox", () => {
     });
 
     it("creates handle, syncs repo, and returns sandboxLayer", async () => {
-      const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+      const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
       tempDirs.push(hostDir);
       await initRepo(hostDir);
       await commitFile(hostDir, "hello.txt", "hello world", "initial");
@@ -153,7 +153,7 @@ describe("startSandbox", () => {
     });
 
     it("copies copyPaths into the sandbox after sync", async () => {
-      const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+      const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
       tempDirs.push(hostDir);
       await initRepo(hostDir);
       await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -181,7 +181,7 @@ describe("startSandbox", () => {
     });
 
     it("times out when copyIn hangs", async () => {
-      const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+      const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
       tempDirs.push(hostDir);
       await initRepo(hostDir);
       await commitFile(hostDir, "hello.txt", "hello", "initial");
@@ -243,7 +243,7 @@ describe("startSandbox", () => {
     }, 15_000);
 
     it("skips missing copyPaths without error", async () => {
-      const hostDir = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+      const hostDir = await mkdtemp(join(tmpdir(), "isolator-test-"));
       tempDirs.push(hostDir);
       await initRepo(hostDir);
       await commitFile(hostDir, "hello.txt", "hello", "initial");

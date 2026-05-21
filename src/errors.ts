@@ -49,7 +49,7 @@ export class AgentError extends Data.TaggedError("AgentError")<{
   readonly preservedWorktreePath?: string;
 }> {}
 
-/** .sandcastle/ config directory missing */
+/** .isolator/ config directory missing */
 export class ConfigDirError extends Data.TaggedError("ConfigDirError")<{
   readonly message: string;
 }> {}
@@ -178,8 +178,8 @@ export class SessionCaptureError extends Data.TaggedError(
 }> {}
 
 /** The provided `cwd` path does not exist or is not a directory. */
-export { CwdError } from "./resolveCwd.js";
-import type { CwdError } from "./resolveCwd.js";
+export { CwdError } from "./resolveCwd.ts";
+import type { CwdError } from "./resolveCwd.ts";
 
 /** Union of all sandbox-related errors */
 export type SandboxError =

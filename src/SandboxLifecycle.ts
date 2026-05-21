@@ -1,7 +1,7 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { Deferred, Effect } from "effect";
-import { Display } from "./Display.js";
+import { Display } from "./Display.ts";
 import {
   CommitCollectionTimeoutError,
   ExecError,
@@ -11,12 +11,12 @@ import {
   SyncError,
   withTimeout,
   type SandboxError,
-} from "./errors.js";
+} from "./errors.ts";
 import {
   Sandbox,
   type ExecResult,
   type SandboxService,
-} from "./SandboxFactory.js";
+} from "./SandboxFactory.ts";
 
 const GIT_SETUP_TIMEOUT_MS = 10_000;
 const HOOK_TIMEOUT_MS = 60_000;

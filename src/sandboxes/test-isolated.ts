@@ -16,7 +16,7 @@ import {
   type ExecResult,
   type IsolatedSandboxHandle,
   type IsolatedSandboxProvider,
-} from "../SandboxProvider.js";
+} from "../SandboxProvider.ts";
 
 /**
  * Create a filesystem-based test isolated sandbox provider.
@@ -29,7 +29,7 @@ export const testIsolated = (): IsolatedSandboxProvider =>
   createIsolatedSandboxProvider({
     name: "test-isolated",
     create: async (): Promise<IsolatedSandboxHandle> => {
-      const sandboxRoot = await mkdtemp(join(tmpdir(), "sandcastle-test-"));
+      const sandboxRoot = await mkdtemp(join(tmpdir(), "isolator-test-"));
       const worktreePath = join(sandboxRoot, "workspace");
       await mkdir(worktreePath, { recursive: true });
 

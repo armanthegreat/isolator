@@ -18,8 +18,8 @@ import { execFile, execFileSync } from "node:child_process";
 import { writeFileSync, mkdtempSync, unlinkSync, rmdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
-import { podman, defaultImageName } from "./podman.js";
-import type { BindMountSandboxHandle } from "../SandboxProvider.js";
+import { podman, defaultImageName } from "./podman.ts";
+import type { BindMountSandboxHandle } from "../SandboxProvider.ts";
 
 const mockExecFile = vi.mocked(execFile);
 const mockExecFileSync = vi.mocked(execFileSync);
@@ -549,7 +549,7 @@ describe("podman()", () => {
     const cpArgs = cpCall![1] as string[];
     expect(cpArgs[0]).toBe("cp");
     expect(cpArgs[1]).toBe("/host/file.txt");
-    expect(cpArgs[2]).toMatch(/^sandcastle-.*:\/sandbox\/file\.txt$/);
+    expect(cpArgs[2]).toMatch(/^isolator-.*:\/sandbox\/file\.txt$/);
 
     await handle.close();
   });
@@ -584,7 +584,7 @@ describe("podman()", () => {
     expect(cpCall).toBeDefined();
     const cpArgs = cpCall![1] as string[];
     expect(cpArgs[0]).toBe("cp");
-    expect(cpArgs[1]).toMatch(/^sandcastle-.*:\/sandbox\/output\.txt$/);
+    expect(cpArgs[1]).toMatch(/^isolator-.*:\/sandbox\/output\.txt$/);
     expect(cpArgs[2]).toBe("/host/output.txt");
 
     await handle.close();
@@ -738,8 +738,8 @@ describe("podman()", () => {
 
     // Trigger a registered exit handler
     const exitListeners = process.listeners("exit");
-    const sandcastleListener = exitListeners[exitListeners.length - 1];
-    sandcastleListener!(0);
+    const isolatorListener = exitListeners[exitListeners.length - 1];
+    isolatorListener!(0);
 
     // Check that execFileSync was called with timeout option
     const rmCall = mockExecFileSync.mock.calls.find(
@@ -755,18 +755,18 @@ describe("podman()", () => {
 
 describe("defaultImageName()", () => {
   it("derives image name from repo directory", () => {
-    expect(defaultImageName("/home/user/my-repo")).toBe("sandcastle:my-repo");
+    expect(defaultImageName("/home/user/my-repo")).toBe("isolator:my-repo");
   });
 
   it("lowercases and sanitizes the directory name", () => {
-    expect(defaultImageName("/home/user/My Repo!")).toBe("sandcastle:my-repo-");
+    expect(defaultImageName("/home/user/My Repo!")).toBe("isolator:my-repo-");
   });
 
   it("handles trailing slashes", () => {
-    expect(defaultImageName("/home/user/repo/")).toBe("sandcastle:repo");
+    expect(defaultImageName("/home/user/repo/")).toBe("isolator:repo");
   });
 
   it("falls back to 'local' for empty path", () => {
-    expect(defaultImageName("")).toBe("sandcastle:local");
+    expect(defaultImageName("")).toBe("isolator:local");
   });
 });

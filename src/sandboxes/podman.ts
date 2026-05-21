@@ -2,7 +2,7 @@
  * Podman sandbox provider — creates Podman containers with bind-mounts.
  *
  * Usage:
- *   import { podman } from "sandcastle/sandboxes/podman";
+ *   import { podman } from "isolator/sandboxes/podman";
  *   await run({ agent: claudeCode("claude-opus-4-7"), sandbox: podman() });
  */
 
@@ -21,15 +21,15 @@ import {
   type BindMountSandboxHandle,
   type ExecResult,
   type InteractiveExecOptions,
-} from "../SandboxProvider.js";
-import type { MountConfig } from "../MountConfig.js";
-import type { SelinuxLabel } from "../mountUtils.js";
+} from "../SandboxProvider.ts";
+import type { MountConfig } from "../MountConfig.ts";
+import type { SelinuxLabel } from "../mountUtils.ts";
 import {
   defaultImageName,
   resolveUserMounts,
   formatVolumeMount,
   processFileMountParents,
-} from "../mountUtils.js";
+} from "../mountUtils.ts";
 
 export interface PodmanOptions {
   /** Podman image name (default: derived from repo directory name). */
@@ -117,7 +117,7 @@ export const podman = (options?: PodmanOptions): SandboxProvider => {
     create: async (
       createOptions: BindMountCreateOptions,
     ): Promise<BindMountSandboxHandle> => {
-      const containerName = `sandcastle-${randomUUID()}`;
+      const containerName = `isolator-${randomUUID()}`;
 
       const worktreePath =
         createOptions.mounts.find(

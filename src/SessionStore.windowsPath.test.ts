@@ -13,9 +13,9 @@ vi.mock("node:path", async (importOriginal) => {
 });
 
 import { Effect } from "effect";
-import type { BindMountSandboxHandle } from "./SandboxProvider.js";
-import { sandboxSessionStore } from "./SessionStore.js";
-import { SessionPaths, defaultSessionPathsLayer } from "./SessionPaths.js";
+import type { BindMountSandboxHandle } from "./SandboxProvider.ts";
+import { sandboxSessionStore } from "./SessionStore.ts";
+import { SessionPaths, defaultSessionPathsLayer } from "./SessionPaths.ts";
 
 describe("sandboxSessionStore on Windows-style hosts", () => {
   it("uses POSIX separators for in-container paths regardless of host platform", async () => {

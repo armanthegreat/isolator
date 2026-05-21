@@ -5,18 +5,15 @@
     "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
     "types": ["node"],
-    "outDir": "./dist",
     "rootDir": "./src",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "noUncheckedIndexedAccess": true,
-    "noEmitOnError": true
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", ".isolator"],
+  "exclude": ["node_modules"]
 }

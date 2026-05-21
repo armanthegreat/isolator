@@ -1,6 +1,6 @@
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
-import { PromptError } from "./errors.js";
+import { PromptError } from "./errors.ts";
 
 export interface ResolvePromptOptions {
   readonly prompt?: string;
@@ -41,7 +41,7 @@ export const resolvePrompt = (
     return Effect.fail(
       new PromptError({
         message:
-          "Must provide either prompt or promptFile. Pass prompt: '...' or promptFile: './.sandcastle/prompt.md' to run().",
+          "Must provide either prompt or promptFile. Pass prompt: '...' or promptFile: './.isolator/prompt.md' to run().",
       }),
     );
   }

@@ -1,5 +1,5 @@
-import * as sandcastle from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import * as isolator from "isolator";
+import { docker } from "isolator/sandboxes/docker";
 
 const MAX_ITERATIONS = 10;
 const MAX_PARALLEL = 4;
@@ -8,11 +8,11 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   console.log(`\n=== Iteration ${iteration}/${MAX_ITERATIONS} ===\n`);
 
   // Phase 1: Plan — orchestrator agent analyzes issues and picks parallelizable work
-  const plan = await sandcastle.run({
+  const plan = await isolator.run({
     sandbox: docker(),
     name: "Planner",
-    agent: sandcastle.claudeCode("claude-opus-4-7"),
-    promptFile: "./.sandcastle/plan-prompt.md",
+    agent: isolator.claudeCode("claude-opus-4-7"),
+    promptFile: "./.isolator/plan-prompt.md",
   });
 
   const planMatch = plan.stdout.match(/<plan>([\s\S]*?)<\/plan>/);
@@ -58,21 +58,21 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     issues.map(async (issue) => {
       await acquire();
       try {
-        await using sandbox = await sandcastle.createSandbox({
+        await using sandbox = await isolator.createSandbox({
           sandbox: docker(),
           branch: issue.branch,
-          copyToWorkspace: ["node_modules"],
+          copyToWorktree: ["node_modules"],
           hooks: {
             sandbox: {
-              onSandboxReady: [{ command: "npm install && npm run build" }],
+              onSandboxReady: [{ command: "pnpm install" }],
             },
           },
         });
 
         const result = await sandbox.run({
           name: "Implementer #" + issue.number,
-          agent: sandcastle.claudeCode("claude-opus-4-7"),
-          promptFile: "./.sandcastle/implement-prompt.md",
+          agent: isolator.claudeCode("claude-opus-4-7"),
+          promptFile: "./.isolator/implement-prompt.md",
           promptArgs: {
             TASK_ID: String(issue.number),
             ISSUE_TITLE: issue.title,
@@ -83,8 +83,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         if (result.commits.length > 0) {
           await sandbox.run({
             name: "Reviewer #" + issue.number,
-            agent: sandcastle.claudeCode("claude-opus-4-7"),
-            promptFile: "./.sandcastle/review-prompt.md",
+            agent: isolator.codex("claude-opus-4-7"),
+            promptFile: "./.isolator/review-prompt.md",
             promptArgs: {
               TASK_ID: String(issue.number),
               ISSUE_TITLE: issue.title,
@@ -115,7 +115,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         entry,
       ): entry is {
         outcome: PromiseFulfilledResult<
-          Awaited<ReturnType<typeof sandcastle.run>>
+          Awaited<ReturnType<typeof isolator.run>>
         >;
         issue: (typeof issues)[number];
       } =>
@@ -139,12 +139,12 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   }
 
   // Phase 3: Merge — one agent merges all branches together
-  await sandcastle.run({
+  await isolator.run({
     sandbox: docker(),
     name: "Merger",
     maxIterations: 10,
-    agent: sandcastle.claudeCode("claude-opus-4-7"),
-    promptFile: "./.sandcastle/merge-prompt.md",
+    agent: isolator.claudeCode("claude-opus-4-7"),
+    promptFile: "./.isolator/merge-prompt.md",
     promptArgs: {
       BRANCHES: completedBranches.map((b) => `- ${b}`).join("\n"),
       ISSUES: completedIssues

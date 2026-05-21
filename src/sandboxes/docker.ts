@@ -2,7 +2,7 @@
  * Docker sandbox provider — wraps DockerLifecycle into a SandboxProvider.
  *
  * Usage:
- *   import { docker } from "sandcastle/sandboxes/docker";
+ *   import { docker } from "isolator/sandboxes/docker";
  *   await run({ agent: claudeCode("claude-opus-4-7"), sandbox: docker() });
  */
 
@@ -15,7 +15,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
 import { Effect } from "effect";
-import { startContainer, removeContainer } from "../DockerLifecycle.js";
+import { startContainer, removeContainer } from "../DockerLifecycle.ts";
 import {
   createBindMountSandboxProvider,
   type SandboxProvider,
@@ -23,14 +23,14 @@ import {
   type BindMountSandboxHandle,
   type ExecResult,
   type InteractiveExecOptions,
-} from "../SandboxProvider.js";
-import type { MountConfig } from "../MountConfig.js";
-import type { SelinuxLabel } from "../mountUtils.js";
+} from "../SandboxProvider.ts";
+import type { MountConfig } from "../MountConfig.ts";
+import type { SelinuxLabel } from "../mountUtils.ts";
 import {
   defaultImageName,
   resolveUserMounts,
   processFileMountParents,
-} from "../mountUtils.js";
+} from "../mountUtils.ts";
 
 export interface DockerOptions {
   /** Docker image name (default: derived from repo directory name). */
@@ -103,7 +103,7 @@ export const docker = (options?: DockerOptions): SandboxProvider => {
     create: async (
       createOptions: BindMountCreateOptions,
     ): Promise<BindMountSandboxHandle> => {
-      const containerName = `sandcastle-${randomUUID()}`;
+      const containerName = `isolator-${randomUUID()}`;
 
       const worktreePath =
         createOptions.mounts.find(
@@ -350,7 +350,7 @@ const checkImageUid = (imageName: string, expectedUid: number): Promise<void> =>
         if (error) {
           reject(
             new Error(
-              `Image '${imageName}' not found locally. Build it first with 'sandcastle docker build-image'.`,
+              `Image '${imageName}' not found locally. Build it first with 'isolator docker build-image'.`,
             ),
           );
           return;
@@ -373,7 +373,7 @@ const checkImageUid = (imageName: string, expectedUid: number): Promise<void> =>
             new Error(
               `UID mismatch: image '${imageName}' was built with UID ${imageUid}, ` +
                 `but the expected UID is ${expectedUid}. ` +
-                `Rebuild the image with 'sandcastle docker build-image', ` +
+                `Rebuild the image with 'isolator docker build-image', ` +
                 `or pass containerUid: ${imageUid} to docker() to match the image.`,
             ),
           );

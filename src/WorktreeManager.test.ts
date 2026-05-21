@@ -21,7 +21,7 @@ import {
   pruneStale,
   remove,
   sanitizeName,
-} from "./WorktreeManager.js";
+} from "./WorktreeManager.ts";
 
 const execAsync = promisify(exec);
 
@@ -92,9 +92,9 @@ describe("sanitizeName", () => {
 });
 
 describe("generateTempBranchName", () => {
-  it("returns a string in sandcastle/<YYYYMMDD-HHMMSS> format", () => {
+  it("returns a string in isolator/<YYYYMMDD-HHMMSS> format", () => {
     const name = generateTempBranchName();
-    expect(name).toMatch(/^sandcastle\/\d{8}-\d{6}$/);
+    expect(name).toMatch(/^isolator\/\d{8}-\d{6}$/);
   });
 
   it("returns different names when called at different times", async () => {
@@ -106,20 +106,20 @@ describe("generateTempBranchName", () => {
 
   it("includes sanitized name when provided", () => {
     const name = generateTempBranchName("my-run");
-    expect(name).toMatch(/^sandcastle\/my-run\/\d{8}-\d{6}$/);
+    expect(name).toMatch(/^isolator\/my-run\/\d{8}-\d{6}$/);
   });
 
   it("sanitizes the name in the branch", () => {
     const name = generateTempBranchName("My Run!");
-    expect(name).toMatch(/^sandcastle\/my-run-\/\d{8}-\d{6}$/);
+    expect(name).toMatch(/^isolator\/my-run-\/\d{8}-\d{6}$/);
   });
 });
 
 describe("WorktreeManager.create", () => {
-  it("creates a worktree at .sandcastle/worktrees/<name>/", async () => {
+  it("creates a worktree at .isolator/worktrees/<name>/", async () => {
     const repoDir = await setupRepo();
     const { path } = await run(create(repoDir));
-    expect(path).toContain(join(repoDir, ".sandcastle", "worktrees"));
+    expect(path).toContain(join(repoDir, ".isolator", "worktrees"));
     const s = await stat(path);
     expect(s.isDirectory()).toBe(true);
   });
@@ -131,22 +131,22 @@ describe("WorktreeManager.create", () => {
     expect(branch.length).toBeGreaterThan(0);
   });
 
-  it("creates a sandcastle/<timestamp> branch when no branch is specified", async () => {
+  it("creates a isolator/<timestamp> branch when no branch is specified", async () => {
     const repoDir = await setupRepo();
     const { branch } = await run(create(repoDir));
-    expect(branch).toMatch(/^sandcastle\/\d{8}-\d{6}$/);
+    expect(branch).toMatch(/^isolator\/\d{8}-\d{6}$/);
   });
 
   it("includes name in branch when name is specified", async () => {
     const repoDir = await setupRepo();
     const { branch } = await run(create(repoDir, { name: "my-run" }));
-    expect(branch).toMatch(/^sandcastle\/my-run\/\d{8}-\d{6}$/);
+    expect(branch).toMatch(/^isolator\/my-run\/\d{8}-\d{6}$/);
   });
 
   it("includes name in worktree directory when name is specified", async () => {
     const repoDir = await setupRepo();
     const { path } = await run(create(repoDir, { name: "my-run" }));
-    expect(path).toMatch(/sandcastle-my-run-\d{8}-\d{6}$/);
+    expect(path).toMatch(/isolator-my-run-\d{8}-\d{6}$/);
   });
 
   it("checks out the specified branch when branch is given", async () => {
@@ -170,7 +170,7 @@ describe("WorktreeManager.create", () => {
     const { stdout } = await execAsync("git rev-parse --abbrev-ref HEAD", {
       cwd: path,
     });
-    expect(stdout.trim()).toMatch(/^sandcastle\//);
+    expect(stdout.trim()).toMatch(/^isolator\//);
   });
 
   it("reuses existing clean worktree for the same branch", async () => {
@@ -232,11 +232,11 @@ describe("WorktreeManager.create", () => {
   it("creates a new branch from HEAD when specified branch does not exist", async () => {
     const repoDir = await setupRepo();
     const { path, branch } = await run(
-      create(repoDir, { branch: "sandcastle/issue-42-new-feature" }),
+      create(repoDir, { branch: "isolator/issue-42-new-feature" }),
     );
 
-    expect(branch).toBe("sandcastle/issue-42-new-feature");
-    expect(await getBranch(path)).toBe("sandcastle/issue-42-new-feature");
+    expect(branch).toBe("isolator/issue-42-new-feature");
+    expect(await getBranch(path)).toBe("isolator/issue-42-new-feature");
 
     // The worktree should have the same HEAD as the main repo
     const { stdout: mainHead } = await execAsync("git rev-parse HEAD", {
@@ -396,13 +396,13 @@ describe("WorktreeManager.create", () => {
     });
 
     const { path, branch } = await run(
-      create(repoDir, { branch: "sandcastle/no-tracking-test" }),
+      create(repoDir, { branch: "isolator/no-tracking-test" }),
     );
 
     // If -c branch.autoSetupMerge=false is working, the new branch should
     // have no upstream tracking config (no branch.<name>.remote or .merge)
     const { stdout: trackingConfig } = await execAsync(
-      `git config --get-regexp "branch\\.sandcastle/no-tracking-test\\." || true`,
+      `git config --get-regexp "branch\\.isolator/no-tracking-test\\." || true`,
       { cwd: repoDir },
     );
     expect(trackingConfig.trim()).toBe("");
@@ -475,9 +475,9 @@ describe("WorktreeManager.pruneStale", () => {
     expect(stdout).not.toContain(path);
   });
 
-  it("removes orphaned directories under .sandcastle/worktrees/", async () => {
+  it("removes orphaned directories under .isolator/worktrees/", async () => {
     const repoDir = await setupRepo();
-    const worktreesDir = join(repoDir, ".sandcastle", "worktrees");
+    const worktreesDir = join(repoDir, ".isolator", "worktrees");
     await mkdir(worktreesDir, { recursive: true });
 
     // Create an orphaned directory (not backed by a git worktree)
@@ -505,14 +505,14 @@ describe("WorktreeManager.pruneStale", () => {
     void name;
   });
 
-  it("does not remove active worktrees when .sandcastle is a symlink", async () => {
+  it("does not remove active worktrees when .isolator is a symlink", async () => {
     // Regression test for #470: git canonicalizes worktree paths, so when
-    // .sandcastle is a symlink the un-canonicalized entryPath never matched
+    // .isolator is a symlink the un-canonicalized entryPath never matched
     // the active-set and active worktrees got wiped out from under their
     // running sandboxes.
     const repoDir = await setupRepo();
     const externalDir = await mkdtemp(join(tmpdir(), "wt-external-"));
-    await symlink(externalDir, join(repoDir, ".sandcastle"));
+    await symlink(externalDir, join(repoDir, ".isolator"));
 
     const { path } = await run(create(repoDir));
 

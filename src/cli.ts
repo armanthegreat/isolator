@@ -7,12 +7,12 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { styleText } from "node:util";
 
-import { Display } from "./Display.js";
-import { buildImage, removeImage } from "./DockerLifecycle.js";
+import { Display } from "./Display.ts";
+import { buildImage, removeImage } from "./DockerLifecycle.ts";
 import {
   buildImage as podmanBuildImage,
   removeImage as podmanRemoveImage,
-} from "./PodmanLifecycle.js";
+} from "./PodmanLifecycle.ts";
 import {
   scaffold,
   listTemplates,
@@ -23,14 +23,14 @@ import {
   listSandboxProviders,
   getSandboxProvider,
   getNextStepsLines,
-} from "./InitService.js";
-import { defaultImageName } from "./sandboxes/docker.js";
+} from "./InitService.ts";
+import { defaultImageName } from "./sandboxes/docker.ts";
 import type {
   AgentEntry,
   BacklogManagerEntry,
   SandboxProviderEntry,
-} from "./InitService.js";
-import { ConfigDirError, InitError } from "./errors.js";
+} from "./InitService.ts";
+import { ConfigDirError, InitError } from "./errors.ts";
 
 const require = createRequire(import.meta.url);
 const VERSION = (require("../package.json") as { version: string }).version;
@@ -61,7 +61,7 @@ const defaultUidBuildArgs = (): Record<string, string> => {
 
 // --- Config directory check ---
 
-const CONFIG_DIR = ".sandcastle";
+const CONFIG_DIR = ".isolator";
 
 const requireConfigDir = (
   cwd: string,
@@ -74,7 +74,7 @@ const requireConfigDir = (
     if (!exists) {
       yield* Effect.fail(
         new ConfigDirError({
-          message: "No .sandcastle/ found. Run `sandcastle init` first.",
+          message: "No .isolator/ found. Run `isolator init` first.",
         }),
       );
     }
@@ -245,13 +245,13 @@ const initCommand = Command.make(
         selectedTemplate = selected as string;
       }
 
-      // Offer to create the "Sandcastle" label on the repo (skip for non-GitHub backlog managers)
+      // Offer to create the "Isolator" label on the repo (skip for non-GitHub backlog managers)
       let shouldCreateLabel: boolean | symbol = false;
       if (selectedBacklogManager.name === "github-issues") {
         shouldCreateLabel = yield* Effect.promise(() =>
           clack.confirm({
             message:
-              'Create a "Sandcastle" GitHub label? (Templates filter issues by this label)',
+              'Create a "Isolator" GitHub label? (Templates filter issues by this label)',
             initialValue: true,
           }),
         );
@@ -260,7 +260,7 @@ const initCommand = Command.make(
           yield* Effect.try({
             try: () =>
               execSync(
-                'gh label create "Sandcastle" --description "Issues for Sandcastle to work on" --color "F9A825" 2>/dev/null',
+                'gh label create "Isolator" --description "Issues for Isolator to work on" --color "F9A825" 2>/dev/null',
                 { cwd, stdio: "ignore" },
               ),
             catch: () => undefined,
@@ -269,7 +269,7 @@ const initCommand = Command.make(
       }
 
       const scaffoldResult = yield* d.spinner(
-        "Scaffolding .sandcastle/ config directory...",
+        "Scaffolding .isolator/ config directory...",
         scaffold(cwd, {
           agent: selectedAgent,
           model: selectedModel,
@@ -314,7 +314,7 @@ const initCommand = Command.make(
         yield* d.status("Init complete! Image built successfully.", "success");
       } else {
         yield* d.status(
-          `Init complete! Run \`sandcastle ${selectedSandboxProvider.cliNamespace} build-image\` to build the ${providerLabel} image later.`,
+          `Init complete! Run \`isolator ${selectedSandboxProvider.cliNamespace} build-image\` to build the ${providerLabel} image later.`,
           "success",
         );
       }
@@ -478,19 +478,19 @@ const podmanCommand = Command.make("podman", {}, () =>
 
 // --- Root command ---
 
-const rootCommand = Command.make("sandcastle", {}, () =>
+const rootCommand = Command.make("isolator", {}, () =>
   Effect.gen(function* () {
     const d = yield* Display;
-    yield* d.status(`Sandcastle v${VERSION}`, "info");
+    yield* d.status(`Isolator v${VERSION}`, "info");
     yield* d.status("Use --help to see available commands.", "info");
   }),
 );
 
-export const sandcastle = rootCommand.pipe(
+export const isolator = rootCommand.pipe(
   Command.withSubcommands([initCommand, dockerCommand, podmanCommand]),
 );
 
-export const cli = Command.run(sandcastle, {
-  name: "sandcastle",
+export const cli = Command.run(isolator, {
+  name: "isolator",
   version: VERSION,
 });
