@@ -38,6 +38,7 @@ import {
   defaultIsolatorHomeLayer,
   formatBrainError,
 } from "./brain/index.ts";
+import { pipelines } from "./pipelines/index.ts";
 
 const require = createRequire(import.meta.url);
 const VERSION = (require("../package.json") as { version: string }).version;
@@ -584,6 +585,42 @@ const connectCommand = Command.make(
     }),
 );
 
+// --- Pipeline command ---
+
+const pipelineNameArg = Args.text({ name: "name" }).pipe(
+  Args.withDescription("Pipeline to run (e.g. echo)"),
+);
+
+const pipelineCommand = Command.make(
+  "pipeline",
+  { name: pipelineNameArg, project: projectArg },
+  ({ name, project }) =>
+    Effect.gen(function* () {
+      const d = yield* Display;
+      const pipeline = pipelines[name];
+      if (pipeline === undefined) {
+        const names = Object.keys(pipelines).join(", ");
+        yield* Effect.fail(
+          new InitError({
+            message: `Unknown pipeline "${name}". Available: ${names}`,
+          }),
+        );
+      }
+      const result = yield* Effect.tryPromise({
+        try: () => pipeline!(project),
+        catch: (cause) =>
+          new InitError({
+            message: `Pipeline "${name}" failed: ${
+              cause instanceof Error ? cause.message : String(cause)
+            }`,
+          }),
+      });
+      yield* d.status(`Pipeline "${name}" complete`, "success");
+      yield* d.text(styleText("dim", `  run:      ${result.runId}`));
+      yield* d.text(styleText("dim", `  artifact: ${result.artifactPath}`));
+    }),
+);
+
 // --- Root command ---
 
 const rootCommand = Command.make("isolator", {}, () =>
@@ -599,6 +636,7 @@ export const isolator = rootCommand.pipe(
     initCommand,
     brainCommand,
     connectCommand,
+    pipelineCommand,
     dockerCommand,
     podmanCommand,
   ]),

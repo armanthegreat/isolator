@@ -166,4 +166,23 @@ describe("isolator CLI", () => {
       expect(output).toContain("claude-code");
     }
   });
+
+  it("--help shows the pipeline command", async () => {
+    const { stdout } = await runCli("--help", process.cwd());
+    expect(stdout).toContain("pipeline");
+  });
+
+  it("pipeline with an unknown name lists the available pipelines", async () => {
+    const hostDir = await mkdtemp(join(tmpdir(), "cli-host-"));
+
+    try {
+      await runCli("pipeline nonexistent demo", hostDir);
+      expect.fail("Expected command to fail");
+    } catch (err: unknown) {
+      const { stdout, stderr } = err as { stdout: string; stderr: string };
+      const output = stdout + stderr;
+      expect(output).toContain("nonexistent");
+      expect(output).toContain("echo");
+    }
+  });
 });
