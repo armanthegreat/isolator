@@ -86,6 +86,144 @@ export const IsolatorConfig = Schema.Struct({
 export type IsolatorConfig = Schema.Schema.Type<typeof IsolatorConfig>;
 
 /**
+ * Policy controlling how aggressively the context compiler stages files. Both
+ * fields are optional; absent means "no cap" for that dimension.
+ */
+export const ContextPolicy = Schema.Struct({
+  /** Maximum number of files to stage (excess are dropped lowest-priority first). */
+  maxFiles: Schema.optional(Schema.Number),
+  /** Approximate token budget; estimated as bytes/4. */
+  maxTokens: Schema.optional(Schema.Number),
+});
+export type ContextPolicy = Schema.Schema.Type<typeof ContextPolicy>;
+
+/**
+ * A single artifact a step is expected to produce. `path` is project-relative
+ * (under `projects/<slug>/`); `type` is a free-form label used by validators.
+ */
+export const StepOutput = Schema.Struct({
+  /** Artifact type label, e.g. `"prd"`, `"open_questions"`. */
+  type: Schema.NonEmptyString,
+  /** Path within `projects/<slug>/`, e.g. `"prd/PRD.md"`. */
+  path: Schema.NonEmptyString,
+});
+export type StepOutput = Schema.Schema.Type<typeof StepOutput>;
+
+/**
+ * The typed step contract — the brain's equivalent of isolator's
+ * `RunOptions`. Drives `runStep()`; supersedes the ad-hoc `RunStepOptions`
+ * once Phase 2 fully lands.
+ */
+export const StepConfig = Schema.Struct({
+  /** Step id, e.g. `"prd"`. */
+  id: Schema.NonEmptyString,
+  /** Skill bundle name to load from `<vault>/skills/`. */
+  skill: Schema.optional(Schema.NonEmptyString),
+  /** Role file name (without `.md`) to load from `<vault>/roles/`. */
+  role: Schema.optional(Schema.NonEmptyString),
+  /** Sandbox image override. */
+  image: Schema.optional(Schema.NonEmptyString),
+  /** Branch strategy passed to `isolator.run()`. */
+  worktree: Schema.optional(Schema.NonEmptyString),
+  /** Vault globs to compile into staged context (supports `$slug`). */
+  context: Schema.Array(Schema.NonEmptyString),
+  /** Budget caps for the context compiler. */
+  contextPolicy: Schema.optionalWith(ContextPolicy, { default: () => ({}) }),
+  /** Artifacts the step is expected to produce. */
+  output: Schema.Array(StepOutput),
+  /** Names of validation predicates that must pass; resolved by `contracts.ts`. */
+  validate: Schema.optionalWith(Schema.Array(Schema.String), {
+    default: () => [],
+  }),
+  /** Approval gate name to pause on after success; absent → no gate. */
+  gate: Schema.optional(Schema.NonEmptyString),
+});
+export type StepConfig = Schema.Schema.Type<typeof StepConfig>;
+
+/**
+ * One file included in a run's compiled context, recorded in the manifest.
+ */
+export const ContextManifestEntry = Schema.Struct({
+  /** Vault-relative path of the staged file. */
+  path: Schema.NonEmptyString,
+  /** Glob that pulled the file in. */
+  reason: Schema.NonEmptyString,
+  /** Size of the staged file in bytes. */
+  bytes: Schema.Number,
+});
+export type ContextManifestEntry = Schema.Schema.Type<
+  typeof ContextManifestEntry
+>;
+
+/**
+ * `context-manifest.yml` — the audit trail of which vault files were staged
+ * for a run, why, and what was excluded by the budget. Written under
+ * `projects/<slug>/runs/<run-id>/`.
+ */
+export const ContextManifest = Schema.Struct({
+  /** Unique id of the run whose context this is. */
+  run_id: Schema.NonEmptyString,
+  /** Project slug. */
+  project: Schema.NonEmptyString,
+  /** Id of the step that compiled the context. */
+  step_id: Schema.NonEmptyString,
+  /** ISO-8601 timestamp the context was compiled. */
+  compiled_at: Schema.NonEmptyString,
+  /** Files staged into the run's context. */
+  included: Schema.Array(ContextManifestEntry),
+  /** A handful of paths that matched the globs but were dropped by the budget. */
+  excluded_examples: Schema.optionalWith(Schema.Array(Schema.String), {
+    default: () => [],
+  }),
+  /** Effective budget caps applied to this compilation. */
+  budget: ContextPolicy,
+});
+export type ContextManifest = Schema.Schema.Type<typeof ContextManifest>;
+
+/**
+ * Lifecycle state of a single artifact, mirrored in its frontmatter.
+ */
+export const ArtifactStatus = Schema.Literal("draft", "approved", "superseded");
+export type ArtifactStatus = Schema.Schema.Type<typeof ArtifactStatus>;
+
+/**
+ * The §11 artifact frontmatter — injected/repaired on every artifact written
+ * back into the vault. Carries lineage (who produced it, in which run) and
+ * lifecycle state.
+ */
+export const ArtifactFrontmatter = Schema.Struct({
+  /** Stable artifact id (slug + type + variant). */
+  artifact_id: Schema.NonEmptyString,
+  /** Artifact type label, matches the step output's `type`. */
+  artifact_type: Schema.NonEmptyString,
+  /** Project slug the artifact belongs to. */
+  project: Schema.NonEmptyString,
+  /** Id of the step that produced this version. */
+  produced_by: Schema.NonEmptyString,
+  /** Id of the run that produced this version. */
+  produced_in_run: Schema.NonEmptyString,
+  /** Monotonic version counter; bumped on every regeneration. */
+  version: Schema.Number,
+  /** Lifecycle state. */
+  status: ArtifactStatus,
+  /** Whether the artifact must be approved at a gate before consumers may use it. */
+  approval_required: Schema.optionalWith(Schema.Boolean, {
+    default: () => false,
+  }),
+  /** ISO-8601 timestamp the artifact was approved; absent until then. */
+  approved_at: Schema.optional(Schema.NonEmptyString),
+  /** Who approved it (free-form). */
+  approved_by: Schema.optional(Schema.NonEmptyString),
+  /** Step ids that consume this artifact downstream. */
+  consumers: Schema.optionalWith(Schema.Array(Schema.String), {
+    default: () => [],
+  }),
+});
+export type ArtifactFrontmatter = Schema.Schema.Type<
+  typeof ArtifactFrontmatter
+>;
+
+/**
  * One run's telemetry record — serialized as a single JSON line in
  * `system/runs.jsonl`. Captures what ran, how much it cost, and what it
  * produced, so `telemetry.md` can later be rolled up from the log.

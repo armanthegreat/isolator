@@ -35,6 +35,9 @@ importers:
       effect:
         specifier: ^3.20.0
         version: 3.21.2
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
