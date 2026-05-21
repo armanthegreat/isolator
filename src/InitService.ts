@@ -197,9 +197,14 @@ const AGENT_REGISTRY: AgentEntry[] = [
     defaultModel: "claude-opus-4-7",
     factoryImport: "claudeCode",
     dockerfileTemplate: CLAUDE_CODE_DOCKERFILE,
-    envExample: `# Anthropic API key
-# If you want to use your Claude subscription instead of an API key, see https://github.com/armanthegreat/isolator/issues/191
-ANTHROPIC_API_KEY=`,
+    envExample: `# Claude Code authentication — set ONE of the following.
+#
+# Recommended: use your Claude Pro/Max subscription. Run \`claude setup-token\`
+# on the host once, then paste the long-lived token here:
+CLAUDE_CODE_OAUTH_TOKEN=
+#
+# Alternative: an Anthropic API key (billed per token):
+# ANTHROPIC_API_KEY=`,
   },
   {
     name: "pi",

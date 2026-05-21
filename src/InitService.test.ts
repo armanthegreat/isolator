@@ -133,9 +133,9 @@ describe("InitService scaffold", () => {
   it.each([
     {
       agent: claudeCodeAgent,
-      expectedKey: "ANTHROPIC_API_KEY=",
+      expectedKey: "CLAUDE_CODE_OAUTH_TOKEN=",
       unexpectedKey: "OPENAI_KEY=",
-      expectIssue191Link: true,
+      expectIssue191Link: false,
     },
     {
       agent: piAgent,
