@@ -211,8 +211,9 @@ export interface RunOptions {
   readonly sandbox: SandboxProvider;
   /**
    * Host repo directory. Replaces `process.cwd()` as the anchor for
-   * `.isolator/worktrees/`, `.isolator/.env`, `.isolator/logs/`,
-   * `.isolator/patches/`, and git operations.
+   * `.isolator/worktrees/`, `.isolator/logs/`, `.isolator/patches/`, and git
+   * operations. (Env vars are resolved from the central `~/.isolator/.env`,
+   * not the host repo.)
    *
    * - Relative paths are resolved against `process.cwd()`.
    * - Absolute paths are used as-is.
@@ -410,7 +411,7 @@ export async function run(
 
   // Resolve env vars and merge with provider env
   const resolvedEnv = await Effect.runPromise(
-    resolveEnv(hostRepoDir).pipe(Effect.provide(NodeContext.layer)),
+    resolveEnv().pipe(Effect.provide(NodeContext.layer)),
   );
   const env = mergeProviderEnv({
     resolvedEnv,

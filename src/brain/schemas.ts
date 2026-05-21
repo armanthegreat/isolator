@@ -10,6 +10,16 @@ import { Schema } from "effect";
 export const ProjectEntry = Schema.Struct({
   /** Absolute path to the project's source-code checkout on this machine. */
   repo_path: Schema.NonEmptyString,
+  /** Agent provider id (e.g. `"claude-code"`); falls back to defaults when absent. */
+  agent: Schema.optional(Schema.NonEmptyString),
+  /** Model id (e.g. `"claude-opus-4-7"`); falls back to defaults when absent. */
+  model: Schema.optional(Schema.NonEmptyString),
+  /** Sandbox provider id (e.g. `"docker"`); falls back to docker when absent. */
+  sandbox: Schema.optional(Schema.NonEmptyString),
+  /** Backlog manager id (e.g. `"github-issues"`); used by pipelines that read tickets. */
+  backlog_manager: Schema.optional(Schema.NonEmptyString),
+  /** Default pipeline name to run for this project (e.g. `"discovery-to-prd"`). */
+  default_pipeline: Schema.optional(Schema.NonEmptyString),
 });
 export type ProjectEntry = Schema.Schema.Type<typeof ProjectEntry>;
 

@@ -3,6 +3,12 @@ import { Effect } from "effect";
 import { execFileSync } from "node:child_process";
 import { basename, join, resolve } from "node:path";
 import { RepoError } from "./errors.ts";
+import {
+  type AgentEntry,
+  type BacklogManagerEntry,
+  renderDockerfile,
+  type SandboxProviderEntry,
+} from "./selectors.ts";
 
 /**
  * Project source repos — the runnable-code half of a project. The brain never
@@ -86,6 +92,63 @@ export const createRepo = (
     );
 
     return { path: repoPath, repoUrl: yield* readOriginUrl(repoPath) };
+  });
+
+/**
+ * Inputs for {@link scaffoldDockerfile}: the agent, backlog manager, and
+ * sandbox provider whose Dockerfile template + tool-snippet + filename combine
+ * to produce the project's `.isolator/Dockerfile`.
+ */
+export interface ScaffoldDockerfileOptions {
+  readonly repoPath: string;
+  readonly agent: AgentEntry;
+  readonly backlogManager: BacklogManagerEntry;
+  readonly sandboxProvider: SandboxProviderEntry;
+  /** When true, overwrite an existing Dockerfile; default false leaves it alone. */
+  readonly overwrite?: boolean;
+}
+
+/**
+ * Drop a `.isolator/<containerfile>` into a project's source repo, rendered
+ * from the chosen agent + backlog manager templates. Idempotent by default:
+ * if the file already exists, returns its path without rewriting it (a user
+ * may have customized it). Pass `overwrite: true` to force a rewrite.
+ *
+ * Returns the absolute path of the written (or pre-existing) containerfile.
+ */
+export const scaffoldDockerfile = (
+  options: ScaffoldDockerfileOptions,
+): Effect.Effect<string, RepoError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const { repoPath, agent, backlogManager, sandboxProvider, overwrite } =
+      options;
+    const configDir = join(repoPath, ".isolator");
+    const target = join(configDir, sandboxProvider.containerfileName);
+
+    const existing = yield* fs
+      .exists(target)
+      .pipe(Effect.catchAll(() => Effect.succeed(false)));
+    if (existing && overwrite !== true) return target;
+
+    const write = Effect.gen(function* () {
+      yield* fs.makeDirectory(configDir, { recursive: true });
+      yield* fs.writeFileString(
+        target,
+        renderDockerfile(agent, backlogManager),
+      );
+    });
+
+    yield* write.pipe(
+      Effect.mapError(
+        (cause) =>
+          new RepoError({
+            path: repoPath,
+            message: `Could not write ${sandboxProvider.containerfileName}: ${cause}`,
+          }),
+      ),
+    );
+    return target;
   });
 
 /**

@@ -66,7 +66,8 @@ export interface CreateWorktreeOptions {
   readonly branchStrategy: WorktreeBranchStrategy;
   /**
    * Host repo directory. Replaces `process.cwd()` as the anchor for
-   * `.isolator/worktrees/`, `.isolator/.env`, and git operations.
+   * `.isolator/worktrees/` and git operations. (Env vars are resolved from
+   * the central `~/.isolator/.env`, not the host repo.)
    *
    * - Relative paths are resolved against `process.cwd()`.
    * - Absolute paths are used as-is.
@@ -296,7 +297,7 @@ export const createWorktree = async (
       const isInlinePrompt = resolved?.source === "inline";
 
       // 2. Resolve env vars
-      const resolvedEnv = yield* resolveEnv(hostRepoDir);
+      const resolvedEnv = yield* resolveEnv();
       const env = mergeProviderEnv({
         resolvedEnv,
         agentProviderEnv: provider.env,
@@ -503,7 +504,7 @@ export const createWorktree = async (
       const isInlinePrompt = resolved.source === "inline";
 
       // 2. Resolve env vars
-      const resolvedEnv = yield* resolveEnv(hostRepoDir);
+      const resolvedEnv = yield* resolveEnv();
       const env = mergeProviderEnv({
         resolvedEnv,
         agentProviderEnv: provider.env,

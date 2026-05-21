@@ -224,8 +224,15 @@ export const runStep = async (options: RunStepOptions): Promise<StepResult> => {
   }
 
   const vaultPath = config.vault_path;
-  const model = options.model ?? config.defaults.model ?? DEFAULT_MODEL;
-  const image = options.image ?? config.defaults.image;
+  const model =
+    options.model ??
+    projectEntry.model ??
+    config.defaults.model ??
+    DEFAULT_MODEL;
+  // Image-by-convention: `isolator:<slug>`, built from the project's
+  // `.isolator/Dockerfile`. Overridable per call (`options.image`) or per
+  // tenant (`config.defaults.image`) when a project needs a different image.
+  const image = options.image ?? config.defaults.image ?? `isolator:${slug}`;
   const token = await readOAuthToken(homeDir);
   const runner = options.runner ?? run;
 
@@ -304,7 +311,7 @@ export const runStep = async (options: RunStepOptions): Promise<StepResult> => {
         model,
         token ? { env: { [OAUTH_TOKEN_KEY]: token } } : undefined,
       ),
-      sandbox: docker(image ? { imageName: image } : undefined),
+      sandbox: docker({ imageName: image }),
       cwd: projectEntry.repo_path,
       prompt,
       maxIterations: 1,

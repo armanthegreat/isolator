@@ -7,7 +7,11 @@ import {
   ProjectExistsError,
   ProjectWriteError,
 } from "./errors.ts";
-import { type IsolatorConfig, ProjectOverview } from "./schemas.ts";
+import {
+  type IsolatorConfig,
+  type ProjectEntry,
+  ProjectOverview,
+} from "./schemas.ts";
 
 /**
  * Project registry — connecting a vault folder to a source code repo.
@@ -135,16 +139,43 @@ export const scaffoldProject = (
     return projectDir;
   });
 
+/** Optional per-project settings persisted alongside `repo_path`. */
+export interface ProjectRegistration {
+  readonly repoPath: string;
+  readonly agent?: string | undefined;
+  readonly model?: string | undefined;
+  readonly sandbox?: string | undefined;
+  readonly backlogManager?: string | undefined;
+  readonly defaultPipeline?: string | undefined;
+}
+
 /**
  * Return a copy of `config` with `slug` registered (or re-pointed) to its
- * machine-local code-repo checkout. Pure — the caller persists the result with
- * `saveConfig`.
+ * machine-local code-repo checkout and per-project defaults. Pure — the caller
+ * persists the result with `saveConfig`. Undefined fields are omitted from the
+ * stored entry so the YAML stays compact.
  */
 export const registerProject = (
   config: IsolatorConfig,
   slug: string,
-  repoPath: string,
-): IsolatorConfig => ({
-  ...config,
-  projects: { ...config.projects, [slug]: { repo_path: repoPath } },
-});
+  registration: ProjectRegistration,
+): IsolatorConfig => {
+  const entry: ProjectEntry = {
+    repo_path: registration.repoPath,
+    ...(registration.agent !== undefined && { agent: registration.agent }),
+    ...(registration.model !== undefined && { model: registration.model }),
+    ...(registration.sandbox !== undefined && {
+      sandbox: registration.sandbox,
+    }),
+    ...(registration.backlogManager !== undefined && {
+      backlog_manager: registration.backlogManager,
+    }),
+    ...(registration.defaultPipeline !== undefined && {
+      default_pipeline: registration.defaultPipeline,
+    }),
+  };
+  return {
+    ...config,
+    projects: { ...config.projects, [slug]: entry },
+  };
+};

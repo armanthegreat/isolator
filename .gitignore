@@ -3,6 +3,12 @@ dist
 .env.*
 .vercel
 
+# Per-repo run artifacts written by run() into a host repo's .isolator/
+.isolator/logs/
+.isolator/worktrees/
+.isolator/patches/
+.isolator/.env
+
 # Local-only planning / vision docs — kept out of the public repo
 plan.md
 ideas/Forge-v0.3.md

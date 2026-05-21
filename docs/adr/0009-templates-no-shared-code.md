@@ -1,5 +1,13 @@
 # Templates do not share code
 
+> **Status: superseded (brain-phase-2 cleanup).** `isolator init` and the
+> `src/templates/` directory were removed when the per-project orchestration
+> model was retired in favour of the brain layer (`src/brain/` + `src/pipelines/`).
+> The templates are preserved as reference seed material under
+> `ideas/template-archive/`. This ADR is kept for historical context; the
+> "templates are self-contained, copied verbatim by `init`" rule no longer
+> applies to any live code.
+
 Each directory under `src/templates/<name>/` is a self-contained unit. Files inside it — `main.mts`, prompts, markdown, anything else — may only depend on the published `isolator` package (the root export and its `./sandboxes/*` subpaths). Templates may not import from each other, from a `templates/_shared/` module, or from any internal Isolator source. Duplication between templates is expected and welcome.
 
 Motivation: a template directory is the unit of distribution. `isolator init <template>` copies the directory verbatim into the user's `.isolator/`, and the result has to run with nothing but `isolator` installed. A shared helper would either need to be inlined at copy time (complicating `init`) or promoted to a public export (growing the package's API surface to support template internals). Beyond the copy-time constraint, templates exist to demonstrate distinct orchestration shapes and are expected to drift apart over time; a shared helper becomes a junk drawer of flags as each template's needs diverge.

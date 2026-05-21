@@ -1,5 +1,6 @@
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 const parseEnvFile = (
@@ -46,22 +47,32 @@ const parseEnvFile = (
     return vars;
   });
 
+/** Default home for the central env file — overrideable in tests. */
+export const DEFAULT_ENV_PATH = (): string =>
+  join(homedir(), ".isolator", ".env");
+
 /**
- * Resolve all env vars from .env files with process.env fallback.
+ * Resolve env vars from the central `~/.isolator/.env`, with `process.env`
+ * fallback for declared keys.
  *
- * Precedence: .isolator/.env > process.env
- * Only keys declared in .isolator/.env are resolved from process.env.
- * Repo root .env is not part of the resolution chain.
+ * Precedence: `~/.isolator/.env` > `process.env`. Only keys present in the
+ * central env file appear in the result — `process.env` is *only* consulted as
+ * a fallback for empty values of declared keys. This keeps the surface tight:
+ * the file declares what gets forwarded.
+ *
+ * The `envPath` argument is a test seam; in production callers pass nothing
+ * and {@link DEFAULT_ENV_PATH} is used.
  */
 export const resolveEnv = (
-  repoDir: string,
+  envPath?: string,
 ): Effect.Effect<Record<string, string>, never, FileSystem.FileSystem> =>
   Effect.gen(function* () {
-    const isolatorEnv = yield* parseEnvFile(join(repoDir, ".isolator", ".env"));
+    const path = envPath ?? DEFAULT_ENV_PATH();
+    const declared = yield* parseEnvFile(path);
 
     const result: Record<string, string> = {};
-    for (const key of Object.keys(isolatorEnv)) {
-      const value = isolatorEnv[key] || process.env[key];
+    for (const key of Object.keys(declared)) {
+      const value = declared[key] || process.env[key];
       if (value) {
         result[key] = value;
       }

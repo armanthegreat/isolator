@@ -14,8 +14,21 @@ import {
   type VaultWriteError,
 } from "./errors.ts";
 import { registerProject, scaffoldProject, toProjectSlug } from "./projects.ts";
-import { createRepo, linkRepo, type RepoLink } from "./repo.ts";
+import {
+  createRepo,
+  linkRepo,
+  type RepoLink,
+  scaffoldDockerfile,
+} from "./repo.ts";
 import type { IsolatorConfig } from "./schemas.ts";
+import {
+  type AgentEntry,
+  type BacklogManagerEntry,
+  getAgent,
+  getBacklogManager,
+  getSandboxProvider,
+  type SandboxProviderEntry,
+} from "./selectors.ts";
 import { BASE_PROMPT_PATH, scaffoldVault } from "./vault.ts";
 
 /**
@@ -87,6 +100,18 @@ export interface ConnectOptions {
   readonly repo?: string | undefined;
   /** `--new-repo`: path at which to create a fresh source repo. */
   readonly newRepo?: string | undefined;
+  /** Agent provider id (e.g. `"claude-code"`). */
+  readonly agent?: string | undefined;
+  /** Model id override (e.g. `"claude-opus-4-7"`). */
+  readonly model?: string | undefined;
+  /** Sandbox provider id (e.g. `"docker"`, `"podman"`). */
+  readonly sandbox?: string | undefined;
+  /** Backlog manager id (e.g. `"github-issues"`). */
+  readonly backlogManager?: string | undefined;
+  /** Default pipeline name for this project (e.g. `"echo"`, `"discovery-to-prd"`). */
+  readonly defaultPipeline?: string | undefined;
+  /** Overwrite the project's `.isolator/<containerfile>` even if present; default false. */
+  readonly overwriteDockerfile?: boolean | undefined;
 }
 
 /** Outcome of a successful {@link connectProject}. */
@@ -101,7 +126,56 @@ export interface ConnectResult {
   readonly repoPath: string;
   /** Whether a new brain vault was created as part of this connect. */
   readonly createdBrain: boolean;
+  /** Absolute path of the project's containerfile (e.g. `<repo>/.isolator/Dockerfile`). */
+  readonly dockerfilePath: string;
+  /** The agent provider chosen for this project. */
+  readonly agent: AgentEntry;
+  /** The sandbox provider chosen for this project. */
+  readonly sandboxProvider: SandboxProviderEntry;
+  /** The backlog manager chosen for this project. */
+  readonly backlogManager: BacklogManagerEntry;
+  /** Model id chosen for this project. */
+  readonly model: string;
+  /** Default pipeline name (when one was selected). */
+  readonly defaultPipeline?: string;
 }
+
+/** Default selectors when callers don't pass a flag (or interactive UX picks them). */
+const DEFAULT_AGENT_ID = "claude-code";
+const DEFAULT_SANDBOX_ID = "docker";
+const DEFAULT_BACKLOG_MANAGER_ID = "github-issues";
+
+/** Resolve agent/sandbox/backlog-manager ids to registry entries, with defaults. */
+const resolveSelections = (
+  options: ConnectOptions,
+): {
+  readonly agent: AgentEntry;
+  readonly sandboxProvider: SandboxProviderEntry;
+  readonly backlogManager: BacklogManagerEntry;
+  readonly model: string;
+} => {
+  const agentId = options.agent ?? DEFAULT_AGENT_ID;
+  const agent = getAgent(agentId);
+  if (agent === undefined) {
+    throw new Error(`Unknown agent "${agentId}"`);
+  }
+  const sandboxId = options.sandbox ?? DEFAULT_SANDBOX_ID;
+  const sandboxProvider = getSandboxProvider(sandboxId);
+  if (sandboxProvider === undefined) {
+    throw new Error(`Unknown sandbox provider "${sandboxId}"`);
+  }
+  const backlogManagerId = options.backlogManager ?? DEFAULT_BACKLOG_MANAGER_ID;
+  const backlogManager = getBacklogManager(backlogManagerId);
+  if (backlogManager === undefined) {
+    throw new Error(`Unknown backlog manager "${backlogManagerId}"`);
+  }
+  return {
+    agent,
+    sandboxProvider,
+    backlogManager,
+    model: options.model ?? agent.defaultModel,
+  };
+};
 
 /** Resolve which brain vault to connect to, per the `--brain`/`--new-brain` flags. */
 const resolveBrain = (
@@ -182,6 +256,8 @@ export const connectProject = (
       return yield* new InvalidSlugError({ slug: options.name });
     }
 
+    const selections = resolveSelections(options);
+
     const brain = yield* resolveBrain(options);
 
     const repo: RepoLink = yield* options.newRepo !== undefined
@@ -196,6 +272,14 @@ export const connectProject = (
       repoUrl: repo.repoUrl,
     });
 
+    const dockerfilePath = yield* scaffoldDockerfile({
+      repoPath: repo.path,
+      agent: selections.agent,
+      backlogManager: selections.backlogManager,
+      sandboxProvider: selections.sandboxProvider,
+      overwrite: options.overwriteDockerfile === true,
+    });
+
     const config = yield* loadConfig.pipe(
       Effect.catchTag("ConfigNotFoundError", (cause) =>
         Effect.fail(
@@ -206,7 +290,16 @@ export const connectProject = (
         ),
       ),
     );
-    yield* saveConfig(registerProject(config, slug, repo.path));
+    yield* saveConfig(
+      registerProject(config, slug, {
+        repoPath: repo.path,
+        agent: selections.agent.name,
+        model: selections.model,
+        sandbox: selections.sandboxProvider.name,
+        backlogManager: selections.backlogManager.name,
+        defaultPipeline: options.defaultPipeline,
+      }),
+    );
 
     return {
       slug,
@@ -214,5 +307,11 @@ export const connectProject = (
       projectDir,
       repoPath: repo.path,
       createdBrain: brain.created,
+      dockerfilePath,
+      agent: selections.agent,
+      sandboxProvider: selections.sandboxProvider,
+      backlogManager: selections.backlogManager,
+      model: selections.model,
+      defaultPipeline: options.defaultPipeline,
     };
   });

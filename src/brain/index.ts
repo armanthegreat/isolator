@@ -32,13 +32,32 @@ export {
   VaultExistsError,
   VaultWriteError,
 } from "./errors.ts";
-export { createRepo, linkRepo, type RepoLink } from "./repo.ts";
+export {
+  createRepo,
+  linkRepo,
+  type RepoLink,
+  scaffoldDockerfile,
+  type ScaffoldDockerfileOptions,
+} from "./repo.ts";
 export {
   registerProject,
+  type ProjectRegistration,
   scaffoldProject,
   type ScaffoldProjectOptions,
   toProjectSlug,
 } from "./projects.ts";
+export {
+  type AgentEntry,
+  type BacklogManagerEntry,
+  getAgent,
+  getBacklogManager,
+  getSandboxProvider,
+  listAgents,
+  listBacklogManagers,
+  listSandboxProviders,
+  renderDockerfile,
+  type SandboxProviderEntry,
+} from "./selectors.ts";
 export { loadSkill, loadSkills, type Skill, SKILL_ENTRY } from "./skills.ts";
 export {
   type CompiledContext,

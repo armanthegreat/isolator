@@ -2,7 +2,6 @@ import { Args, Command, Options } from "@effect/cli";
 import { FileSystem } from "@effect/platform";
 import { Effect, Option } from "effect";
 import * as clack from "@clack/prompts";
-import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -14,29 +13,22 @@ import {
   buildImage as podmanBuildImage,
   removeImage as podmanRemoveImage,
 } from "./PodmanLifecycle.ts";
-import {
-  scaffold,
-  listTemplates,
-  listAgents,
-  getAgent,
-  listBacklogManagers,
-  getBacklogManager,
-  listSandboxProviders,
-  getSandboxProvider,
-  getNextStepsLines,
-} from "./InitService.ts";
 import { defaultImageName } from "./sandboxes/docker.ts";
-import type {
-  AgentEntry,
-  BacklogManagerEntry,
-  SandboxProviderEntry,
-} from "./InitService.ts";
 import { ConfigDirError, InitError } from "./errors.ts";
 import {
+  type AgentEntry,
+  type BacklogManagerEntry,
   connectProject,
   createBrain,
   defaultIsolatorHomeLayer,
   formatBrainError,
+  getAgent,
+  getBacklogManager,
+  getSandboxProvider,
+  listAgents,
+  listBacklogManagers,
+  listSandboxProviders,
+  type SandboxProviderEntry,
 } from "./brain/index.ts";
 import { pipelines } from "./pipelines/index.ts";
 
@@ -82,263 +74,14 @@ const requireConfigDir = (
     if (!exists) {
       yield* Effect.fail(
         new ConfigDirError({
-          message: "No .isolator/ found. Run `isolator init` first.",
+          message:
+            "No .isolator/ found. Connect this repo with `isolator connect <project>` first.",
         }),
       );
     }
   });
 
-// --- Init command ---
-
-const templateOption = Options.text("template").pipe(
-  Options.withDescription(
-    "Template to scaffold (e.g. blank, simple-loop, parallel-planner)",
-  ),
-  Options.optional,
-);
-
-const agentOption = Options.text("agent").pipe(
-  Options.withDescription("Agent to use (e.g. claude-code)"),
-  Options.optional,
-);
-
-const initModelOption = Options.text("model").pipe(
-  Options.withDescription(
-    "Model to use for the agent (e.g. claude-sonnet-4-6). Defaults to the agent's default model",
-  ),
-  Options.optional,
-);
-
-const initCommand = Command.make(
-  "init",
-  {
-    imageName: imageNameOption,
-    template: templateOption,
-    agent: agentOption,
-    model: initModelOption,
-  },
-  ({
-    imageName: imageNameFlag,
-    template,
-    agent: agentFlag,
-    model: modelFlag,
-  }) =>
-    Effect.gen(function* () {
-      const d = yield* Display;
-      const cwd = process.cwd();
-      const imageName = resolveImageName(imageNameFlag, cwd);
-
-      // Early validation of CLI flags before interactive prompts
-      const templates = listTemplates();
-      if (template._tag === "Some") {
-        const valid = templates.find((tmpl) => tmpl.name === template.value);
-        if (!valid) {
-          const names = templates.map((tmpl) => tmpl.name).join(", ");
-          yield* Effect.fail(
-            new InitError({
-              message: `Unknown template "${template.value}". Available: ${names}`,
-            }),
-          );
-        }
-      }
-
-      // Resolve agent: CLI flag > interactive select
-      const agents = listAgents();
-      let selectedAgent: AgentEntry;
-      if (agentFlag._tag === "Some") {
-        const entry = getAgent(agentFlag.value);
-        if (!entry) {
-          const names = agents.map((a) => a.name).join(", ");
-          yield* Effect.fail(
-            new InitError({
-              message: `Unknown agent "${agentFlag.value}". Available: ${names}`,
-            }),
-          );
-        }
-        selectedAgent = entry!;
-      } else {
-        const selected = yield* Effect.promise(() =>
-          clack.select({
-            message: "Select an agent:",
-            initialValue: "claude-code",
-            options: agents.map((a) => ({
-              value: a.name,
-              label: a.label,
-              hint: `Default model: ${a.defaultModel}`,
-            })),
-          }),
-        );
-        if (clack.isCancel(selected)) {
-          yield* Effect.fail(
-            new InitError({ message: "Agent selection cancelled." }),
-          );
-        }
-        selectedAgent = getAgent(selected as string)!;
-      }
-
-      // Resolve model: CLI flag > agent default
-      const selectedModel =
-        modelFlag._tag === "Some"
-          ? modelFlag.value
-          : selectedAgent.defaultModel;
-
-      // Resolve sandbox provider: interactive select (no default — user must choose)
-      const sandboxProviders = listSandboxProviders();
-      let selectedSandboxProvider: SandboxProviderEntry;
-      {
-        const selected = yield* Effect.promise(() =>
-          clack.select({
-            message: "Select a sandbox provider:",
-            options: sandboxProviders.map((p) => ({
-              value: p.name,
-              label: p.label,
-            })),
-          }),
-        );
-        if (clack.isCancel(selected)) {
-          yield* Effect.fail(
-            new InitError({
-              message: "Sandbox provider selection cancelled.",
-            }),
-          );
-        }
-        selectedSandboxProvider = getSandboxProvider(selected as string)!;
-      }
-
-      // Resolve backlog manager: interactive select
-      const backlogManagers = listBacklogManagers();
-      let selectedBacklogManager: BacklogManagerEntry;
-      {
-        const selected = yield* Effect.promise(() =>
-          clack.select({
-            message: "Select a backlog manager:",
-            initialValue: "github-issues",
-            options: backlogManagers.map((b) => ({
-              value: b.name,
-              label: b.label,
-            })),
-          }),
-        );
-        if (clack.isCancel(selected)) {
-          yield* Effect.fail(
-            new InitError({
-              message: "Backlog manager selection cancelled.",
-            }),
-          );
-        }
-        selectedBacklogManager = getBacklogManager(selected as string)!;
-      }
-
-      // Resolve template: CLI flag > interactive select (already validated above)
-      let selectedTemplate: string;
-      if (template._tag === "Some") {
-        selectedTemplate = template.value;
-      } else {
-        const selected = yield* Effect.promise(() =>
-          clack.select({
-            message: "Select a template:",
-            initialValue: "blank",
-            options: templates.map((tmpl) => ({
-              value: tmpl.name,
-              label: tmpl.name,
-              hint: tmpl.description,
-            })),
-          }),
-        );
-        if (clack.isCancel(selected)) {
-          yield* Effect.fail(
-            new InitError({ message: "Template selection cancelled." }),
-          );
-        }
-        selectedTemplate = selected as string;
-      }
-
-      // Offer to create the "Isolator" label on the repo (skip for non-GitHub backlog managers)
-      let shouldCreateLabel: boolean | symbol = false;
-      if (selectedBacklogManager.name === "github-issues") {
-        shouldCreateLabel = yield* Effect.promise(() =>
-          clack.confirm({
-            message:
-              'Create a "Isolator" GitHub label? (Templates filter issues by this label)',
-            initialValue: true,
-          }),
-        );
-
-        if (shouldCreateLabel === true) {
-          yield* Effect.try({
-            try: () =>
-              execSync(
-                'gh label create "Isolator" --description "Issues for Isolator to work on" --color "F9A825" 2>/dev/null',
-                { cwd, stdio: "ignore" },
-              ),
-            catch: () => undefined,
-          }).pipe(Effect.ignore);
-        }
-      }
-
-      const scaffoldResult = yield* d.spinner(
-        "Scaffolding .isolator/ config directory...",
-        scaffold(cwd, {
-          agent: selectedAgent,
-          model: selectedModel,
-          templateName: selectedTemplate,
-          createLabel: shouldCreateLabel === true,
-          backlogManager: selectedBacklogManager,
-          sandboxProvider: selectedSandboxProvider,
-        }).pipe(
-          Effect.mapError(
-            (e) =>
-              new InitError({
-                message: `${e instanceof Error ? e.message : e}`,
-              }),
-          ),
-        ),
-      );
-
-      // Prompt user before building image
-      const providerLabel = selectedSandboxProvider.label;
-      const shouldBuild = yield* Effect.promise(() =>
-        clack.confirm({
-          message: `Build the default ${providerLabel} image now?`,
-          initialValue: true,
-        }),
-      );
-
-      if (shouldBuild === true) {
-        const containerfileDir = join(cwd, CONFIG_DIR);
-        if (selectedSandboxProvider.name === "podman") {
-          yield* d.spinner(
-            `Building ${providerLabel} image '${imageName}'...`,
-            podmanBuildImage(imageName, containerfileDir),
-          );
-        } else {
-          yield* d.spinner(
-            `Building ${providerLabel} image '${imageName}'...`,
-            buildImage(imageName, containerfileDir, {
-              buildArgs: defaultUidBuildArgs(),
-            }),
-          );
-        }
-        yield* d.status("Init complete! Image built successfully.", "success");
-      } else {
-        yield* d.status(
-          `Init complete! Run \`isolator ${selectedSandboxProvider.cliNamespace} build-image\` to build the ${providerLabel} image later.`,
-          "success",
-        );
-      }
-
-      // Show template-specific next steps
-      const nextSteps = getNextStepsLines(
-        selectedTemplate,
-        scaffoldResult.mainFilename,
-      );
-      for (const [i, line] of nextSteps.entries()) {
-        yield* d.text(i === 0 ? line : styleText("dim", line));
-      }
-    }),
-);
-
-// --- Build-image command ---
+// --- Build-image command (per-project Docker image utility) ---
 
 const dockerfileOption = Options.file("dockerfile").pipe(
   Options.withDescription(
@@ -551,6 +294,92 @@ const newRepoOption = Options.text("new-repo").pipe(
   Options.optional,
 );
 
+const agentOption = Options.text("agent").pipe(
+  Options.withDescription(
+    "Agent provider id (claude-code | pi | codex | opencode)",
+  ),
+  Options.optional,
+);
+
+const sandboxOption = Options.text("sandbox").pipe(
+  Options.withDescription("Sandbox provider (docker | podman)"),
+  Options.optional,
+);
+
+const modelOption = Options.text("model").pipe(
+  Options.withDescription(
+    "Model id (e.g. claude-opus-4-7); defaults to the agent's default",
+  ),
+  Options.optional,
+);
+
+const backlogManagerOption = Options.text("backlog-manager").pipe(
+  Options.withDescription("Backlog manager id (github-issues | beads)"),
+  Options.optional,
+);
+
+const pipelineOption = Options.text("pipeline").pipe(
+  Options.withDescription(
+    "Default pipeline name for this project (e.g. echo, discovery-to-prd)",
+  ),
+  Options.optional,
+);
+
+const overwriteDockerfileOption = Options.boolean("overwrite-dockerfile").pipe(
+  Options.withDescription(
+    "Overwrite the project's .isolator/Dockerfile even if it already exists",
+  ),
+);
+
+/**
+ * Resolve a `--<flag>` choice against a named registry; fall back to interactive
+ * selection when the flag is absent and stdin is a TTY. Returns `undefined` only
+ * when the user cancels; callers fail the command in that case.
+ */
+const resolveSelection = <T extends { name: string; label: string }>(
+  flagValue: Option.Option<string>,
+  entries: readonly T[],
+  lookup: (name: string) => T | undefined,
+  prompt: {
+    message: string;
+    initialValue?: string;
+    hint?: (entry: T) => string;
+  },
+): Effect.Effect<T, InitError> =>
+  Effect.gen(function* () {
+    if (flagValue._tag === "Some") {
+      const entry = lookup(flagValue.value);
+      if (entry === undefined) {
+        const names = entries.map((e) => e.name).join(", ");
+        return yield* Effect.fail(
+          new InitError({
+            message: `Unknown choice "${flagValue.value}". Available: ${names}`,
+          }),
+        );
+      }
+      return entry;
+    }
+    const selected = yield* Effect.promise(() =>
+      clack.select({
+        message: prompt.message,
+        ...(prompt.initialValue !== undefined && {
+          initialValue: prompt.initialValue,
+        }),
+        options: entries.map((e) => ({
+          value: e.name,
+          label: e.label,
+          ...(prompt.hint !== undefined && { hint: prompt.hint(e) }),
+        })),
+      }),
+    );
+    if (clack.isCancel(selected)) {
+      return yield* Effect.fail(
+        new InitError({ message: `${prompt.message} cancelled.` }),
+      );
+    }
+    return lookup(selected as string)!;
+  });
+
 const connectCommand = Command.make(
   "connect",
   {
@@ -559,10 +388,79 @@ const connectCommand = Command.make(
     newBrain: newBrainOption,
     repo: repoOption,
     newRepo: newRepoOption,
+    agent: agentOption,
+    sandbox: sandboxOption,
+    model: modelOption,
+    backlogManager: backlogManagerOption,
+    pipeline: pipelineOption,
+    overwriteDockerfile: overwriteDockerfileOption,
   },
-  ({ project, brain, newBrain, repo, newRepo }) =>
+  ({
+    project,
+    brain,
+    newBrain,
+    repo,
+    newRepo,
+    agent: agentFlag,
+    sandbox: sandboxFlag,
+    model: modelFlag,
+    backlogManager: backlogFlag,
+    pipeline: pipelineFlag,
+    overwriteDockerfile,
+  }) =>
     Effect.gen(function* () {
       const d = yield* Display;
+
+      // Interactive selections (each falls back to its flag when present).
+      const agent: AgentEntry = yield* resolveSelection(
+        agentFlag,
+        listAgents(),
+        getAgent,
+        {
+          message: "Select an agent:",
+          initialValue: "claude-code",
+          hint: (a) => `Default model: ${a.defaultModel}`,
+        },
+      );
+      const sandboxProvider: SandboxProviderEntry = yield* resolveSelection(
+        sandboxFlag,
+        listSandboxProviders(),
+        getSandboxProvider,
+        { message: "Select a sandbox provider:", initialValue: "docker" },
+      );
+      const backlogManager: BacklogManagerEntry = yield* resolveSelection(
+        backlogFlag,
+        listBacklogManagers(),
+        getBacklogManager,
+        {
+          message: "Select a backlog manager:",
+          initialValue: "github-issues",
+        },
+      );
+
+      const pipelineNames = Object.keys(pipelines);
+      const pipelineEntries = pipelineNames.map((name) => ({
+        name,
+        label: name,
+      }));
+      const defaultPipeline =
+        pipelineFlag._tag === "Some"
+          ? pipelineFlag.value
+          : pipelineEntries.length === 0
+            ? undefined
+            : (yield* resolveSelection(
+                Option.none(),
+                pipelineEntries,
+                (n) => pipelineEntries.find((p) => p.name === n),
+                {
+                  message: "Default pipeline for this project:",
+                  initialValue: pipelineEntries[0]!.name,
+                },
+              )).name;
+
+      const model =
+        modelFlag._tag === "Some" ? modelFlag.value : agent.defaultModel;
+
       const result = yield* asInitError(
         connectProject({
           name: project,
@@ -571,6 +469,12 @@ const connectCommand = Command.make(
           newBrain: Option.getOrUndefined(newBrain),
           repo: Option.getOrUndefined(repo),
           newRepo: Option.getOrUndefined(newRepo),
+          agent: agent.name,
+          sandbox: sandboxProvider.name,
+          model,
+          backlogManager: backlogManager.name,
+          defaultPipeline,
+          overwriteDockerfile,
         }).pipe(Effect.provide(defaultIsolatorHomeLayer)),
       );
       if (result.createdBrain) {
@@ -580,8 +484,28 @@ const connectCommand = Command.make(
         );
       }
       yield* d.status(`Connected project "${result.slug}"`, "success");
-      yield* d.text(styleText("dim", `  vault: ${result.projectDir}`));
-      yield* d.text(styleText("dim", `  repo:  ${result.repoPath}`));
+      yield* d.text(styleText("dim", `  vault:      ${result.projectDir}`));
+      yield* d.text(styleText("dim", `  repo:       ${result.repoPath}`));
+      yield* d.text(styleText("dim", `  dockerfile: ${result.dockerfilePath}`));
+      yield* d.text(
+        styleText("dim", `  agent:      ${agent.label} (${model})`),
+      );
+      yield* d.text(
+        styleText(
+          "dim",
+          `  sandbox:    ${sandboxProvider.label} (image: isolator:${result.slug})`,
+        ),
+      );
+      yield* d.text(styleText("dim", `  backlog:    ${backlogManager.label}`));
+      if (defaultPipeline !== undefined) {
+        yield* d.text(styleText("dim", `  pipeline:   ${defaultPipeline}`));
+      }
+      yield* d.text(
+        styleText(
+          "dim",
+          `\nNext: build the project image with \`isolator ${sandboxProvider.cliNamespace} build-image\` in ${result.repoPath}.`,
+        ),
+      );
     }),
 );
 
@@ -633,7 +557,6 @@ const rootCommand = Command.make("isolator", {}, () =>
 
 export const isolator = rootCommand.pipe(
   Command.withSubcommands([
-    initCommand,
     brainCommand,
     connectCommand,
     pipelineCommand,
