@@ -1,5 +1,11 @@
 # @ai-hero/sandcastle
 
+## 0.5.11
+
+### Patch Changes
+
+- 5ac972a: Bump default Claude Code model from `claude-opus-4-6` to `claude-opus-4-7`.
+
 ## 0.5.10
 
 ### Patch Changes
