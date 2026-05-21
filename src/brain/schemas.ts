@@ -84,3 +84,44 @@ export const IsolatorConfig = Schema.Struct({
   ),
 });
 export type IsolatorConfig = Schema.Schema.Type<typeof IsolatorConfig>;
+
+/**
+ * One run's telemetry record — serialized as a single JSON line in
+ * `system/runs.jsonl`. Captures what ran, how much it cost, and what it
+ * produced, so `telemetry.md` can later be rolled up from the log.
+ */
+export const RunRecord = Schema.Struct({
+  /** Unique id of this run. */
+  run_id: Schema.NonEmptyString,
+  /** Project slug the run belongs to. */
+  project: Schema.NonEmptyString,
+  /** Id of the step that was run. */
+  step_id: Schema.NonEmptyString,
+  /** Agent provider id (e.g. `"claude-code"`). */
+  agent: Schema.NonEmptyString,
+  /** Model id the agent ran with. */
+  model: Schema.NonEmptyString,
+  /** Total input-side tokens (prompt + cache create + cache read). */
+  tokens_in: Schema.Number,
+  /** Total output tokens. */
+  tokens_out: Schema.Number,
+  /** Estimated cost in USD; absent until cost modeling lands. */
+  cost_estimate: Schema.optional(Schema.Number),
+  /** Wall-clock duration of the run in milliseconds. */
+  duration_ms: Schema.Number,
+  /** Whether the run succeeded. */
+  success: Schema.Boolean,
+  /** Names of validation predicates that passed; empty until contracts land. */
+  validation_results: Schema.optionalWith(Schema.Array(Schema.String), {
+    default: () => [],
+  }),
+  /** Vault-relative paths of the artifacts the run produced. */
+  artifact_paths: Schema.Array(Schema.String),
+  /** Vault-relative path of the run's context manifest; absent until the context compiler lands. */
+  context_manifest_path: Schema.optional(Schema.String),
+  /** ISO-8601 timestamp the run started. */
+  started_at: Schema.NonEmptyString,
+  /** ISO-8601 timestamp the run finished. */
+  finished_at: Schema.NonEmptyString,
+});
+export type RunRecord = Schema.Schema.Type<typeof RunRecord>;

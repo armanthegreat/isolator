@@ -40,11 +40,19 @@ export {
   toProjectSlug,
 } from "./projects.ts";
 export {
+  runStep,
+  type RunStepOptions,
+  type StepArtifact,
+  type StepResult,
+  type StepRunner,
+} from "./run-step.ts";
+export {
   ConfigDefaults,
   IsolatorConfig,
   ProjectEntry,
   ProjectOverview,
   ProjectStatus,
+  RunRecord,
 } from "./schemas.ts";
 export {
   BASE_PROMPT_PATH,
