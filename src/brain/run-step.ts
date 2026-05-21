@@ -1,9 +1,10 @@
+import { FileSystem } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
 import { randomUUID } from "node:crypto";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { claudeCode } from "../AgentProvider.ts";
 import { Output, type OutputStringDefinition } from "../Output.ts";
 import {
@@ -14,24 +15,39 @@ import {
 } from "../run.ts";
 import { docker } from "../sandboxes/docker.ts";
 import {
+  readArtifactFrontmatter,
+  writeArtifact,
+  type WrittenArtifact,
+  writeContextManifest,
+} from "./artifacts.ts";
+import {
   defaultIsolatorHomeLayer,
   isolatorHomeLayer,
   loadConfig,
 } from "./config.ts";
+import { compileContext, type CompiledContext } from "./context-compiler.ts";
+import { runValidators, type ValidationResult } from "./contracts.ts";
 import { toProjectSlug } from "./projects.ts";
-import type { RunRecord } from "./schemas.ts";
+import { composePrompt, OUTPUT_TAG } from "./prompt-stack.ts";
+import type { ContextPolicy, RunRecord, StepOutput } from "./schemas.ts";
+import { loadSkills, type Skill } from "./skills.ts";
+import { appendRunRecord } from "./telemetry.ts";
+import { BASE_PROMPT_PATH, readNote } from "./vault.ts";
 
 /**
  * `runStep()` — the core brain primitive.
  *
  * isolator's unit is a raw `run()`; the brain's unit is a *brain-backed step*.
- * `runStep` resolves the project from `~/.isolator/config.yml`, composes a
- * prompt carrying a structured-output contract, runs the agent in a sandbox via
- * isolator's `run()`, writes the produced artifact back into the vault, and
- * appends a telemetry line to `system/runs.jsonl`.
+ * `runStep` resolves the project from `~/.isolator/config.yml`, compiles the
+ * step's scoped context, composes a prompt (base + role + skills + staged
+ * context + objective + output contract + verification + failure policy),
+ * runs the agent in a sandbox via isolator's `run()`, writes the produced
+ * artifact back into the vault with §11 frontmatter, runs the named
+ * validators, and appends a telemetry line to `system/runs.jsonl`.
  *
- * This is the minimal Phase-1 form: one artifact, an inline prompt, no context
- * compiler / prompt-stack / validators yet — those are layered on later.
+ * The full pipeline is *all-optional past Phase 1*: `context`, `skill(s)`,
+ * `role`, `validate`, `gate` are all opt-in. A minimal call still works —
+ * objective + single output — preserving the Phase 1 echo pipeline.
  */
 
 /** Default model when neither the step nor the config specifies one. */
@@ -39,9 +55,6 @@ const DEFAULT_MODEL = "claude-opus-4-7";
 
 /** Env var the `claude` CLI reads for Pro/Max subscription auth. */
 const OAUTH_TOKEN_KEY = "CLAUDE_CODE_OAUTH_TOKEN";
-
-/** XML tag the agent wraps its result in; its contents become the artifact. */
-const OUTPUT_TAG = "step_output";
 
 /**
  * The slice of isolator's `run()` that `runStep` depends on — the
@@ -67,11 +80,27 @@ export interface RunStepOptions {
   readonly id: string;
   /** The step objective handed to the agent. */
   readonly prompt: string;
-  /** The single artifact this step produces. */
+  /** The primary artifact — emitted via `<step_output>` and written to the vault. */
   readonly output: StepArtifact;
+  /** Additional artifacts the step contracts to produce; used by validators. */
+  readonly outputs?: readonly StepOutput[];
+  /** Single skill bundle to load. */
+  readonly skill?: string;
+  /** Multiple skill bundles to load (in addition to `skill`). */
+  readonly skills?: readonly string[];
+  /** Role file (without `.md`) loaded from `<vault>/roles/`. */
+  readonly role?: string;
+  /** Vault globs declaring the step's input context. */
+  readonly context?: readonly string[];
+  /** Budget caps for the context compiler. */
+  readonly contextPolicy?: ContextPolicy;
+  /** Names of validators that must run after the step. */
+  readonly validate?: readonly string[];
+  /** Approval gate to pause on; consumed by the pipeline via {@link gate}. */
+  readonly gate?: string;
   /** Model override; defaults to config `defaults.model`, then `claude-opus-4-7`. */
   readonly model?: string;
-  /** Docker image override; defaults to config `defaults.image`, then docker()'s repo-derived name. */
+  /** Docker image override; defaults to config `defaults.image`. */
   readonly image?: string;
   /** Override the `~/.isolator` home directory — test seam. */
   readonly home?: string;
@@ -87,31 +116,25 @@ export interface StepResult {
   readonly stepId: string;
   /** Project slug. */
   readonly project: string;
-  /** Absolute path of the artifact written into the vault. */
+  /** Absolute path of the primary artifact written into the vault. */
   readonly artifactPath: string;
+  /** Frontmatter records of every artifact this step wrote into the vault. */
+  readonly artifacts: readonly WrittenArtifact[];
+  /** Vault-relative path of the context manifest, when one was written. */
+  readonly contextManifestPath?: string;
   /** Combined agent stdout. */
   readonly stdout: string;
   /** Whether the run succeeded. */
   readonly success: boolean;
+  /** Verdicts from the validators that ran; empty when none were configured. */
+  readonly validation: readonly ValidationResult[];
+  /** Name of the gate the step is pausing on, if any. */
+  readonly pendingGate?: string;
 }
 
 /** Generate a sortable, unique run id. */
 const makeRunId = (): string =>
   `run-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
-
-/** Wrap the step objective with the structured-output contract. */
-const composePrompt = (objective: string): string =>
-  `${objective}
-
-## Output contract
-
-When you have finished, emit your result wrapped in a single output tag:
-
-<${OUTPUT_TAG}>
-your result here
-</${OUTPUT_TAG}>
-
-Write nothing after the closing </${OUTPUT_TAG}> tag.`;
 
 /** Read the subscription OAuth token from the environment or `~/.isolator/.env`. */
 const readOAuthToken = async (homeDir: string): Promise<string | undefined> => {
@@ -150,19 +173,25 @@ const sumTokens = (
   return { in: tokensIn, out: tokensOut };
 };
 
-/** Append one telemetry record to the vault's `system/runs.jsonl`. */
-const appendRunRecord = async (
-  vaultPath: string,
-  record: RunRecord,
-): Promise<void> => {
-  const logPath = join(vaultPath, "system", "runs.jsonl");
-  await mkdir(dirname(logPath), { recursive: true });
-  await appendFile(logPath, `${JSON.stringify(record)}\n`, "utf-8");
+/** Resolve the merged list of skill ids from `skill` and `skills`. */
+const resolveSkillIds = (options: RunStepOptions): readonly string[] => {
+  const set = new Set<string>();
+  if (options.skill) set.add(options.skill);
+  for (const id of options.skills ?? []) set.add(id);
+  return [...set];
+};
+
+/** Resolve the full output contract — primary first, then any extras. */
+const resolveOutputs = (options: RunStepOptions): readonly StepOutput[] => {
+  const primary: StepOutput = options.output;
+  const extras = (options.outputs ?? []).filter(
+    (entry) => entry.path !== primary.path,
+  );
+  return [primary, ...extras];
 };
 
 /**
- * Run a single brain-backed step end to end. Resolves the project, runs the
- * agent in a sandbox, writes the artifact into the vault, and records telemetry.
+ * Run a single brain-backed step end to end.
  */
 export const runStep = async (options: RunStepOptions): Promise<StepResult> => {
   const slug = toProjectSlug(options.project);
@@ -174,9 +203,11 @@ export const runStep = async (options: RunStepOptions): Promise<StepResult> => {
   const homeLayer = options.home
     ? isolatorHomeLayer(options.home)
     : defaultIsolatorHomeLayer;
+  const baseLayer = Layer.merge(homeLayer, NodeContext.layer);
+  const fsLayer = NodeContext.layer;
 
   const config = await Effect.runPromise(
-    loadConfig.pipe(Effect.provide(Layer.merge(homeLayer, NodeContext.layer))),
+    loadConfig.pipe(Effect.provide(baseLayer)),
   ).catch((cause: unknown) => {
     throw new Error(
       `Could not load the isolator config: ${
@@ -200,8 +231,70 @@ export const runStep = async (options: RunStepOptions): Promise<StepResult> => {
 
   const runId = makeRunId();
   const startedAt = new Date().toISOString();
+  const outputs = resolveOutputs(options);
+
+  // 1. Compile context (if any patterns declared) and write its manifest.
+  let compiledContext: CompiledContext | undefined;
+  let contextManifestPath: string | undefined;
+  if (options.context && options.context.length > 0) {
+    compiledContext = await Effect.runPromise(
+      compileContext({
+        vaultPath,
+        project: slug,
+        stepId: options.id,
+        runId,
+        patterns: options.context,
+        policy: options.contextPolicy,
+      }).pipe(Effect.provide(fsLayer)),
+    );
+    contextManifestPath = await Effect.runPromise(
+      writeContextManifest(vaultPath, compiledContext.manifest).pipe(
+        Effect.provide(fsLayer),
+      ),
+    );
+  }
+
+  // 2. Load skills + role + base prompt.
+  const skillIds = resolveSkillIds(options);
+  const skills: readonly Skill[] =
+    skillIds.length === 0
+      ? []
+      : await Effect.runPromise(
+          loadSkills(vaultPath, skillIds).pipe(Effect.provide(fsLayer)),
+        );
+  const role = options.role
+    ? {
+        id: options.role,
+        markdown: await Effect.runPromise(
+          readNote(vaultPath, join("roles", `${options.role}.md`)).pipe(
+            Effect.provide(fsLayer),
+          ),
+        ),
+      }
+    : undefined;
+  const base = await Effect.runPromise(
+    readNote(vaultPath, BASE_PROMPT_PATH).pipe(Effect.provide(fsLayer)),
+  ).catch(() => "");
+
+  // 3. Compose the prompt.
+  const prompt = composePrompt({
+    base,
+    role,
+    skills,
+    context: compiledContext?.files,
+    objective: options.prompt,
+    output: outputs,
+    validate: options.validate,
+  });
+
+  // 4. Run the agent.
   const runDir = join(vaultPath, "projects", slug, "runs", runId);
-  await mkdir(runDir, { recursive: true });
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      yield* fs.makeDirectory(runDir, { recursive: true });
+    }).pipe(Effect.provide(fsLayer)),
+  ).catch(() => undefined);
 
   let runResult: RunResult & { output: string };
   try {
@@ -213,37 +306,64 @@ export const runStep = async (options: RunStepOptions): Promise<StepResult> => {
       ),
       sandbox: docker(image ? { imageName: image } : undefined),
       cwd: projectEntry.repo_path,
-      prompt: composePrompt(options.prompt),
+      prompt,
       maxIterations: 1,
       logging: { type: "file", path: join(runDir, "agent.log") },
       output: Output.string({ tag: OUTPUT_TAG }),
     });
   } catch (cause) {
-    await appendRunRecord(vaultPath, {
-      run_id: runId,
-      project: slug,
-      step_id: options.id,
-      agent: "claude-code",
-      model,
-      tokens_in: 0,
-      tokens_out: 0,
-      duration_ms: Date.now() - Date.parse(startedAt),
-      success: false,
-      validation_results: [],
-      artifact_paths: [],
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-    }).catch(() => undefined);
+    await Effect.runPromise(
+      appendRunRecord(vaultPath, {
+        run_id: runId,
+        project: slug,
+        step_id: options.id,
+        agent: "claude-code",
+        model,
+        tokens_in: 0,
+        tokens_out: 0,
+        duration_ms: Date.now() - Date.parse(startedAt),
+        success: false,
+        validation_results: [],
+        artifact_paths: [],
+        context_manifest_path: contextManifestPath,
+        started_at: startedAt,
+        finished_at: new Date().toISOString(),
+      }).pipe(Effect.provide(fsLayer)),
+    ).catch(() => undefined);
     throw cause;
   }
 
-  const artifactRelPath = join("projects", slug, options.output.path);
-  const artifactPath = join(vaultPath, artifactRelPath);
-  await mkdir(dirname(artifactPath), { recursive: true });
-  await writeFile(artifactPath, `${runResult.output}\n`, "utf-8");
+  // 5. Write the primary artifact (with §11 frontmatter).
+  const primary = await Effect.runPromise(
+    writeArtifact({
+      vaultPath,
+      project: slug,
+      stepId: options.id,
+      runId,
+      output: options.output,
+      body: runResult.output,
+      approvalRequired: options.gate !== undefined,
+    }).pipe(Effect.provide(fsLayer)),
+  );
+  const artifacts: WrittenArtifact[] = [primary];
 
+  // 6. Run validators.
+  const validation =
+    options.validate && options.validate.length > 0
+      ? await Effect.runPromise(
+          runValidators(options.validate, {
+            vaultPath,
+            project: slug,
+            runId,
+            outputs,
+          }).pipe(Effect.provide(fsLayer)),
+        )
+      : [];
+  const allPassed = validation.every((v) => v.passed);
+
+  // 7. Append the telemetry record.
   const tokens = sumTokens(runResult.iterations);
-  await appendRunRecord(vaultPath, {
+  const record: RunRecord = {
     run_id: runId,
     project: slug,
     step_id: options.id,
@@ -252,19 +372,63 @@ export const runStep = async (options: RunStepOptions): Promise<StepResult> => {
     tokens_in: tokens.in,
     tokens_out: tokens.out,
     duration_ms: Date.now() - Date.parse(startedAt),
-    success: true,
-    validation_results: [],
-    artifact_paths: [artifactRelPath],
+    success: allPassed,
+    validation_results: validation.filter((v) => v.passed).map((v) => v.name),
+    artifact_paths: artifacts.map((a) => a.relPath),
+    context_manifest_path: contextManifestPath,
     started_at: startedAt,
     finished_at: new Date().toISOString(),
-  });
+  };
+  await Effect.runPromise(
+    appendRunRecord(vaultPath, record).pipe(Effect.provide(fsLayer)),
+  );
 
   return {
     runId,
     stepId: options.id,
     project: slug,
-    artifactPath,
+    artifactPath: primary.absPath,
+    artifacts,
+    contextManifestPath,
     stdout: runResult.stdout,
-    success: true,
+    success: allPassed,
+    validation,
+    pendingGate: options.gate,
   };
+};
+
+/**
+ * Approval gate. Thrown when a step paused on a gate has not yet been
+ * approved — the pipeline halts and the CLI surfaces the gate name.
+ *
+ * Resuming is the operator's job: edit the primary artifact's frontmatter
+ * `status` to `"approved"` (or use `isolator continue`, when it lands) and
+ * re-run the pipeline; the gate then passes.
+ */
+export class PausedForApproval extends Error {
+  override readonly name = "PausedForApproval";
+  /** Gate name from the step config. */
+  readonly gateName: string;
+  /** The step result whose primary artifact is awaiting approval. */
+  readonly result: StepResult;
+  constructor(gateName: string, result: StepResult) {
+    super(`Paused at gate "${gateName}" — approve the artifact to continue.`);
+    this.gateName = gateName;
+    this.result = result;
+  }
+}
+
+/**
+ * Pause the pipeline at a named gate until the step's primary artifact has
+ * been marked `status: approved` in its frontmatter. A no-op when the
+ * artifact is already approved.
+ */
+export const gate = async (name: string, result: StepResult): Promise<void> => {
+  const frontmatter = await Effect.runPromise(
+    readArtifactFrontmatter(result.artifactPath).pipe(
+      Effect.provide(NodeContext.layer),
+    ),
+  ).catch(() => undefined);
+  if (frontmatter?.status === "approved") return;
+  throw new PausedForApproval(name, result);
 };

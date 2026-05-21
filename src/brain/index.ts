@@ -39,7 +39,42 @@ export {
   type ScaffoldProjectOptions,
   toProjectSlug,
 } from "./projects.ts";
+export { loadSkill, loadSkills, type Skill, SKILL_ENTRY } from "./skills.ts";
 export {
+  type CompiledContext,
+  compileContext,
+  type CompileContextOptions,
+  type StagedContextFile,
+} from "./context-compiler.ts";
+export {
+  composePrompt,
+  OUTPUT_TAG,
+  type PromptStackInputs,
+} from "./prompt-stack.ts";
+export {
+  readArtifactFrontmatter,
+  writeArtifact,
+  type WriteArtifactOptions,
+  writeContextManifest,
+  type WrittenArtifact,
+} from "./artifacts.ts";
+export {
+  runValidators,
+  validators,
+  type ValidationContext,
+  type ValidationResult,
+  type Validator,
+} from "./contracts.ts";
+export {
+  appendRunRecord,
+  readRunLog,
+  renderTelemetry,
+  rollupTelemetry,
+  TELEMETRY_MD_PATH,
+} from "./telemetry.ts";
+export {
+  gate,
+  PausedForApproval,
   runStep,
   type RunStepOptions,
   type StepArtifact,
@@ -47,16 +82,28 @@ export {
   type StepRunner,
 } from "./run-step.ts";
 export {
+  ArtifactFrontmatter,
+  ArtifactStatus,
   ConfigDefaults,
+  ContextManifest,
+  ContextManifestEntry,
+  ContextPolicy,
   IsolatorConfig,
   ProjectEntry,
   ProjectOverview,
   ProjectStatus,
   RunRecord,
+  StepConfig,
+  StepOutput,
 } from "./schemas.ts";
 export {
   BASE_PROMPT_PATH,
+  expandSlug,
+  expandSlugs,
+  globVault,
+  readNote,
   RUNS_LOG_PATH,
   scaffoldVault,
   VAULT_DIRS,
+  type VaultGlobMatch,
 } from "./vault.ts";
