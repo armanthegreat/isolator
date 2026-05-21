@@ -35,6 +35,9 @@ importers:
       effect:
         specifier: ^3.20.0
         version: 3.21.2
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
     devDependencies:
       '@changesets/cli':
         specifier: ^2.30.0
