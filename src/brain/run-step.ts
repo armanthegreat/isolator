@@ -31,7 +31,7 @@ import { toProjectSlug } from "./projects.ts";
 import { composePrompt, OUTPUT_TAG } from "./prompt-stack.ts";
 import type { ContextPolicy, RunRecord, StepOutput } from "./schemas.ts";
 import { loadSkills, type Skill } from "./skills.ts";
-import { appendRunRecord } from "./telemetry.ts";
+import { appendRunRecord, readRunLog } from "./telemetry.ts";
 import { BASE_PROMPT_PATH, readNote } from "./vault.ts";
 
 /**
@@ -130,6 +130,11 @@ export interface StepResult {
   readonly validation: readonly ValidationResult[];
   /** Name of the gate the step is pausing on, if any. */
   readonly pendingGate?: string;
+  /**
+   * True when the step was short-circuited — a prior successful run was found,
+   * so the agent was not invoked and the existing artifact was reused.
+   */
+  readonly skipped?: boolean;
 }
 
 /** Generate a sortable, unique run id. */
@@ -224,6 +229,56 @@ export const runStep = async (options: RunStepOptions): Promise<StepResult> => {
   }
 
   const vaultPath = config.vault_path;
+
+  // Short-circuit: a step that already completed successfully is not re-run.
+  // This is what lets `isolator continue` converge — re-invoking a pipeline
+  // skips done steps, so an approved gate stays approved instead of being
+  // regenerated as a fresh draft on every pass. A step counts as done when a
+  // successful run record exists for it *and* its primary artifact (with
+  // readable §11 frontmatter) is still on disk; otherwise it is run afresh.
+  const priorRuns = await Effect.runPromise(
+    readRunLog(vaultPath).pipe(Effect.provide(fsLayer)),
+  ).catch(() => [] as RunRecord[]);
+  const priorRun = priorRuns
+    .filter(
+      (record) =>
+        record.project === slug &&
+        record.step_id === options.id &&
+        record.success,
+    )
+    .at(-1);
+  if (priorRun !== undefined) {
+    const skippedRelPath = join("projects", slug, options.output.path);
+    const skippedAbsPath = join(vaultPath, skippedRelPath);
+    const frontmatter = await Effect.runPromise(
+      readArtifactFrontmatter(skippedAbsPath).pipe(Effect.provide(fsLayer)),
+    ).catch(() => undefined);
+    if (frontmatter !== undefined) {
+      return {
+        runId: priorRun.run_id,
+        stepId: options.id,
+        project: slug,
+        artifactPath: skippedAbsPath,
+        artifacts: [
+          {
+            relPath: skippedRelPath,
+            absPath: skippedAbsPath,
+            frontmatter,
+          },
+        ],
+        contextManifestPath: priorRun.context_manifest_path,
+        stdout: "",
+        success: true,
+        validation: (priorRun.validation_results ?? []).map((name) => ({
+          name,
+          passed: true,
+        })),
+        pendingGate: options.gate,
+        skipped: true,
+      };
+    }
+  }
+
   const model =
     options.model ??
     projectEntry.model ??

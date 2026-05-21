@@ -7,6 +7,7 @@ import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
 import {
   __testing__,
+  approveArtifact,
   readArtifactFrontmatter,
   writeArtifact,
   type WriteArtifactOptions,
@@ -146,5 +147,51 @@ describe("readArtifactFrontmatter", () => {
     await seed(vault, { "notes.md": "no fence here" });
     const fm = await readFm(join(vault, "notes.md"));
     expect(fm).toBeUndefined();
+  });
+});
+
+describe("approveArtifact", () => {
+  const approve = (absPath: string) =>
+    Effect.runPromise(
+      approveArtifact(absPath).pipe(Effect.provide(NodeContext.layer)),
+    );
+
+  it("flips a draft artifact to approved with a timestamp", async () => {
+    const vault = join(await makeTmp(), "brain");
+    const result = await write(baseOptions(vault, { body: "# PRD body" }));
+    expect(result.frontmatter.status).toBe("draft");
+
+    const approved = await approve(result.absPath);
+    expect(approved.status).toBe("approved");
+    expect(approved.approved_at).toBeDefined();
+    expect(approved.approved_by).toBe("isolator continue");
+
+    // The change is persisted and the body survives.
+    const fm = await readFm(result.absPath);
+    expect(fm?.status).toBe("approved");
+    expect(await readFile(result.absPath, "utf8")).toContain("# PRD body");
+  });
+
+  it("fails with VaultWriteError for a file without frontmatter", async () => {
+    const vault = join(await makeTmp(), "brain");
+    await seed(vault, { "notes.md": "no fence here" });
+
+    const error = await Effect.runPromise(
+      approveArtifact(join(vault, "notes.md")).pipe(
+        Effect.provide(NodeContext.layer),
+        Effect.flip,
+      ),
+    );
+    expect(error._tag).toBe("VaultWriteError");
+  });
+
+  it("fails with VaultReadError for a missing file", async () => {
+    const error = await Effect.runPromise(
+      approveArtifact("/tmp/definitely-not-a-real-file-xyz.md").pipe(
+        Effect.provide(NodeContext.layer),
+        Effect.flip,
+      ),
+    );
+    expect(error._tag).toBe("VaultReadError");
   });
 });

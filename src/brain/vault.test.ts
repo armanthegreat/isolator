@@ -52,12 +52,23 @@ describe("scaffoldVault", () => {
     expect(await readFile(join(dir, "system", "runs.jsonl"), "utf8")).toBe("");
   });
 
-  it("adds a .gitkeep to each directory that ships empty", async () => {
+  it("adds a .gitkeep to each empty directory without a template README", async () => {
     const dir = join(await makeTmp(), "brain");
     await run(dir);
 
-    for (const subdir of ["skills", "roles", "rules", "projects"]) {
-      expect(await readFile(join(dir, subdir, ".gitkeep"), "utf8")).toBe("");
+    expect(await readFile(join(dir, "projects", ".gitkeep"), "utf8")).toBe("");
+  });
+
+  it("seeds a template README into skills, roles, and rules", async () => {
+    const dir = join(await makeTmp(), "brain");
+    await run(dir);
+
+    for (const subdir of ["skills", "roles", "rules"]) {
+      const readme = await readFile(join(dir, subdir, "README.md"), "utf8");
+      expect(readme.length).toBeGreaterThan(0);
+      expect(readme).toContain(
+        `# ${subdir[0]!.toUpperCase()}${subdir.slice(1)}`,
+      );
     }
   });
 

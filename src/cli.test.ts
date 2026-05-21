@@ -175,4 +175,20 @@ describe("isolator CLI", () => {
       expect(output).toContain("echo");
     }
   });
+
+  it("--help lists the status and continue verbs", async () => {
+    const { stdout } = await runCli("--help", process.cwd());
+    expect(stdout).toContain("status");
+    expect(stdout).toContain("continue");
+  });
+
+  it("status --help describes the project argument", async () => {
+    const { stdout } = await runCli("status --help", process.cwd());
+    expect(stdout).toContain("project");
+  });
+
+  it("continue --help describes the project argument", async () => {
+    const { stdout } = await runCli("continue --help", process.cwd());
+    expect(stdout).toContain("project");
+  });
 });
