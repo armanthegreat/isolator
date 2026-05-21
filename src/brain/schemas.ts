@@ -28,6 +28,44 @@ export const ConfigDefaults = Schema.Struct({
 export type ConfigDefaults = Schema.Schema.Type<typeof ConfigDefaults>;
 
 /**
+ * Lifecycle state of a project, mirrored in `overview.md` frontmatter.
+ *
+ * `awaiting_approval` — paused at a gate; `awaiting_input` — paused on
+ * unanswered open questions; `done`/`failed` — terminal.
+ */
+export const ProjectStatus = Schema.Literal(
+  "active",
+  "awaiting_approval",
+  "awaiting_input",
+  "done",
+  "failed",
+);
+export type ProjectStatus = Schema.Schema.Type<typeof ProjectStatus>;
+
+/**
+ * The frontmatter of a project's `overview.md` in the vault — the portable,
+ * machine-independent half of the project record (the machine-local checkout
+ * path lives in `IsolatorConfig.projects`).
+ */
+export const ProjectOverview = Schema.Struct({
+  /** Project slug; matches the `projects/<slug>/` folder name. */
+  project: Schema.NonEmptyString,
+  /** Lifecycle state. */
+  status: ProjectStatus,
+  /** Git remote URL of the source repo; absent until a remote is set. */
+  repo_url: Schema.optional(Schema.NonEmptyString),
+  /** Pipeline currently driving the project (e.g. `"discovery-to-prd"`). */
+  pipeline: Schema.optional(Schema.NonEmptyString),
+  /** Id of the step the pipeline is at. */
+  current_step: Schema.optional(Schema.NonEmptyString),
+  /** Id of the most recent run. */
+  last_run_id: Schema.optional(Schema.NonEmptyString),
+  /** Human-readable reason the project is blocked, when paused. */
+  blocker: Schema.optional(Schema.NonEmptyString),
+});
+export type ProjectOverview = Schema.Schema.Type<typeof ProjectOverview>;
+
+/**
  * The central isolator config — `~/.isolator/config.yml`.
  *
  * Holds the machine-specific state the portable brain vault deliberately does
